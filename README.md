@@ -17,6 +17,20 @@ cmake --build build
 ```
 で実行できる。
 
+また、Bashスクリプトを用意したのでそれを使用してもいい。
+ビルドは
+```sh
+./build.sh
+```
+実行は
+```sh
+./run.sh
+```
+また、ビルドと実行を続けて実行するには
+```sh
+./build_run.sh
+```
+
 ## 環境
 - **OS**: Ubuntu 20.04 LTS(VMWare or 電産室)
 - **使用言語**: C
