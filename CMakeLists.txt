@@ -1,15 +1,15 @@
 # 1. 基本設定
 # -----------------
 cmake_minimum_required(VERSION 3.16)
-project(SuperDimensionalTennisServer C)
+project(SuperDimensionalTennisServer CXX)
 
-# C99規格を必須にする
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+# C++17規格を必須にする
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 3. ソースファイルの定義
 # -----------------
-file(GLOB_RECURSE SOURCES "src/*.c")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 
 # 4. 実行ファイルの定義
 # -----------------
