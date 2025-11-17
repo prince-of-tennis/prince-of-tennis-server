@@ -1,51 +1,51 @@
 #include "ball_physics.h"
 #include <math.h>
 
-
 // ベクトル計算
-Vec3 vec3_add(Vec3 a, Vec3 b) 
+Point3d point3d_add(Point3d a, Point3d b)
 {
-    Vec3 r = { a.x + b.x, a.y + b.y, a.z + b.z };
+    Point3d r = {a.x + b.x, a.y + b.y, a.z + b.z};
     return r;
 }
 
-Vec3 vec3_mul(Vec3 v, float k) 
+Point3d point3d_mul(Point3d v, float k)
 {
-    Vec3 r = { v.x * k, v.y * k, v.z * k };
+    Point3d r = {v.x * k, v.y * k, v.z * k};
     return r;
 }
 
-Vec3 vec3_normalize(Vec3 v) 
+Point3d point3d_normalize(Point3d v)
 {
-    float len = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
-    if (len == 0) return v;
-    Vec3 r = { v.x/len, v.y/len, v.z/len };
+    float len = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    if (len == 0)
+        return v;
+    Point3d r = {v.x / len, v.y / len, v.z / len};
     return r;
 }
 
 // 物理更新
-void update_ball(Ball *ball, float dt) 
+void update_ball(Ball *ball, float dt)
 {
     // 重力（y方向を下に）
     ball->velocity.y -= 9.8f * dt;
 
     // 位置更新
-    ball->position = vec3_add(ball->position, vec3_mul(ball->velocity, dt));
+    ball->point = point3d_add(ball->point, point3d_mul(ball->velocity, dt));
 }
 
-
 // バウンド処理
-void handle_bounce(Ball *ball, float ground_y, float restitution) 
+void handle_bounce(Ball *ball, float ground_y, float restitution)
 {
-    if (ball->position.y <= ground_y) {
-        ball->position.y = ground_y;
+    if (ball->point.y <= ground_y)
+    {
+        ball->point.y = ground_y;
         ball->velocity.y = -ball->velocity.y * restitution;
     }
 }
 
 // ラケット打球処理
-void handle_racket_hit(Ball *ball, Vec3 direction, float power)
+void handle_racket_hit(Ball *ball, Point3d direction, float power)
 {
-    Vec3 dir = vec3_normalize(direction);
-    ball->velocity = vec3_mul(dir, power);
+    Point3d dir = point3d_normalize(direction);
+    ball->velocity = point3d_mul(dir, power);
 }
