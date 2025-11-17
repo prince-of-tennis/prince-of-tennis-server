@@ -8,37 +8,30 @@
 #include <fcntl.h>
 
 // サーバー初期化
-int network_init_server(int port)
+TCPsocket network_init_server(int port)
 {
-    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0)
+    // SDL2_net初期化
+    if (SDLNet_Init() < 0)
     {
-        perror("socket error");
-        return -1;
+        printf("SDLNet_Init error: %s\n", SDLNet_GetError());
+        return NULL;
     }
 
-    int opt = 1;
-    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    IPaddress ip;
 
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
-
-    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    // サーバーのアドレスとポートを設定
+    if (SDLNet_ResolveHost(&ip, NULL, port) < 0)
     {
-        perror("bind error");
-        close(server_socket);
-        return -1;
+        printf("SDLNet_ResolveHost error: %s\n", SDLNet_GetError());
+        return NULL;
     }
 
-    if (listen(server_socket, MAX_CLIENTS) < 0)
+    // サーバーソケットを開く
+    TCPsocket server_socket = SDLNet_TCP_Open(&ip);
+    if (!server_socket)
     {
-        perror("listen error");
-        close(server_socket);
-        return -1;
+        printf("SDLNet_TCP_Open error: %s\n", SDLNet_GetError());
+        return NULL;
     }
 
     printf("[SERVER] Listening on port %d...\n", port);
@@ -47,15 +40,14 @@ int network_init_server(int port)
 }
 
 // クライアント接続受付
-int network_accept_client(int server_socket, Client clients[])
+TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
 {
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
+    // クライアントの接続を受け付ける
+    TCPsocket client_socket = SDLNet_TCP_Accept(server_socket);
 
-    int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
-    if (client_socket < 0)
+    if (!client_socket)
     {
-        return -1; // No new client
+        return NULL;
     }
 
     // 空いてるスロットに登録
@@ -66,29 +58,28 @@ int network_accept_client(int server_socket, Client clients[])
             clients[i].socket = client_socket;
             clients[i].connected = true;
 
-            printf("[SERVER] Client connected: socket=%d\n", client_socket);
+            printf("[SERVER] Client connected (Slot %d)\n", i);
 
-            return i; // 登録したクライアントID
+            return client_socket;
         }
     }
 
     // 空きがなければ拒否
     printf("Server full, rejecting client.\n");
-    close(client_socket);
-
-    return -1;
+    SDLNet_TCP_Close(client_socket);
+    return NULL;
 }
 
 // データ送信
-int network_send(int client_socket, const void *data, int size)
+int network_send(TCPsocket client_socket, const void *data, int size)
 {
-    return send(client_socket, data, size, 0);
+    return SDLNet_TCP_Send(client_socket, data, size);
 }
 
 // データ受信
-int network_receive(int client_socket, void *buffer, int size)
+int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
-    return recv(client_socket, buffer, size, 0);
+    return SDLNet_TCP_Recv(client_socket, buffer, size);
 }
 
 // クライアント切断
@@ -96,15 +87,17 @@ void network_close_client(Client *client)
 {
     if (client->connected)
     {
-        close(client->socket);
+        SDLNet_TCP_Close(client->socket);
         client->connected = false;
+        client->socket = NULL;
 
         printf("[SERVER] Client disconnected.\n");
     }
 }
 
 // サーバー終了
-void network_shutdown_server(int server_socket)
+void network_shutdown_server(TCPsocket server_socket)
 {
-    close(server_socket);
+    SDLNet_TCP_Close(server_socket);
+    SDLNet_Quit();
 }
