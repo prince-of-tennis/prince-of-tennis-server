@@ -18,5 +18,6 @@ add_executable(server ${SOURCES})
 # 5. インクルードパスの指定 (★修正箇所)
 # -----------------
 target_include_directories(server PRIVATE
-    "src"
+    "src",
+    "libs/common/src"
 )
