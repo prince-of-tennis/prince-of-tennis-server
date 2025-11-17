@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_net.h>
 
 #include "network/network.h"
 #include "game/game_state.h"
@@ -7,11 +9,11 @@
 
 Client clients[MAX_CLIENTS] = {0};
 
-int main()
+int main(int argc, char *argv[])
 {
     // --- サーバー起動 ---
-    int server_socket = network_init_server(SERVER_PORT);
-    if (server_socket < 0)
+    TCPsocket server_socket = network_init_server(SERVER_PORT);
+    if (!server_socket)
     {
         printf("Server start failed.\n");
         return 1;
@@ -22,32 +24,56 @@ int main()
 
     const float dt = 0.016f; // 60FPS
 
+    // ソケットセットの作成
+    SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
+    if (!socket_set)
+    {
+        printf("SDLNet_AllocSocketSet error: %s\n", SDLNet_GetError());
+        return 1;
+    }
+
+    // サーバーソケットをセットに追加
+    SDLNet_TCP_AddSocket(socket_set, server_socket);
+
     while (1)
     {
-        // --- 新規クライアント受付 ---
-        network_accept_client(server_socket, clients);
 
-        // --- 全クライアントからの受信処理 ---
-        for (int i = 0; i < MAX_CLIENTS; i++)
+        int ready_count = SDLNet_CheckSockets(socket_set, 0);
+
+        if (ready_count < 0)
         {
-            if (!clients[i].connected)
+            printf("SDLNet_CheckSockets error: %s\n", SDLNet_GetError());
+            break;
+        }
+
+        if (ready_count > 0)
+        {
+            if (SDLNet_SocketReady(server_socket))
             {
-                continue;
+                TCPsocket new_client_socket = network_accept_client(server_socket, clients);
+                if (new_client_socket)
+                {
+                    SDLNet_TCP_AddSocket(socket_set, new_client_socket);
+                }
             }
 
-            char buffer[256] = {0};
-            int size = network_receive(clients[i].socket, buffer, sizeof(buffer));
-
-            if (size <= 0)
+            for (int i = 0; i < MAX_CLIENTS; i++)
             {
-                network_close_client(&clients[i]);
-                continue;
+                if (clients[i].connected && SDLNet_SocketReady(clients[i].socket))
+                {
+                    char buffer[256] = {0};
+                    int size = network_receive(clients[i].socket, buffer, sizeof(buffer));
+
+                    if (size <= 0)
+                    {
+                        SDLNet_TCP_DelSocket(socket_set, clients[i].socket);
+                        network_close_client(&clients[i]);
+                        continue;
+                    }
+
+                    printf("[SERVER] Client %d says: %s\n", i, buffer);
+                }
             }
-
-            printf("[SERVER] Client %d says: %s\n", i, buffer);
-
-            // 例: 受信した内容をそのまま送り返す
-            network_send(clients[i].socket, buffer, size);
         }
 
         // --- 物理更新 ---
@@ -56,13 +82,14 @@ int main()
 
         // --- デバッグログ ---
         printf("Ball: (%.2f, %.2f, %.2f)\n",
-            state.ball.position.x,
-            state.ball.position.y,
-            state.ball.position.z);
+               state.ball.point.x,
+               state.ball.point.y,
+               state.ball.point.z);
 
-        usleep(16000);
+        SDL_Delay(16); // 60fps
     }
 
+    SDLNet_FreeSocketSet(socket_set);
     network_shutdown_server(server_socket);
     return 0;
 }
