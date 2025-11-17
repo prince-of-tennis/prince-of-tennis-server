@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include "game/game_state.h"
 #include "physics/ball_physics.h"
-#include "ball.h"
 
 int main()
 {
