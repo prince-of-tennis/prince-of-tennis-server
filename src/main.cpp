@@ -11,7 +11,7 @@ Client clients[MAX_CLIENTS] = {0};
 
 int main(int argc, char *argv[])
 {
-    // --- ƒT[ƒo[‹N“® ---
+    // --- ã‚µãƒ¼ãƒãƒ¼èµ·å‹• ---
     TCPsocket server_socket = network_init_server(SERVER_PORT);
     if (!server_socket)
     {
@@ -24,7 +24,10 @@ int main(int argc, char *argv[])
 
     const float dt = 0.016f; // 60FPS
 
-    // ƒ\ƒPƒbƒgƒZƒbƒg‚Ìì¬
+    // --- ã“ã“ã§å¿…è¦äººæ•°æƒã†ã¾ã§å¾…ã¤ ---
+    wait_for_clients(server_socket, clients);
+
+    // --- ã‚½ã‚±ãƒƒãƒˆã‚»ãƒƒãƒˆã®ä½œæˆ ---
     SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
     if (!socket_set)
     {
@@ -32,12 +35,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // ƒT[ƒo[ƒ\ƒPƒbƒg‚ğƒZƒbƒg‚É’Ç‰Á
+    // ã‚µãƒ¼ãƒãƒ¼ã‚½ã‚±ãƒƒãƒˆã‚’ã‚»ãƒƒãƒˆã«è¿½åŠ 
     SDLNet_TCP_AddSocket(socket_set, server_socket);
+
+    printf("[SERVER] Game started!\n");
 
     while (1)
     {
-
         int ready_count = SDLNet_CheckSockets(socket_set, 0);
 
         if (ready_count < 0)
@@ -76,11 +80,11 @@ int main(int argc, char *argv[])
             }
         }
 
-        // --- •¨—XV ---
+        // --- ç‰©ç†æ›´æ–° ---
         update_ball(&state.ball, dt);
         handle_bounce(&state.ball, 0.0f, 0.7f);
 
-        // --- ƒfƒoƒbƒOƒƒO ---
+        // --- ãƒ‡ãƒãƒƒã‚°ãƒ­ã‚° ---
         printf("Ball: (%.2f, %.2f, %.2f)\n",
                state.ball.point.x,
                state.ball.point.y,
