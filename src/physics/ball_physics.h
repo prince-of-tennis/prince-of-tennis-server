@@ -3,14 +3,14 @@
 #define BALL_PHYSICS_H
 
 #include "ball.h"
-// ƒxƒNƒgƒ‹ƒ†[ƒeƒBƒŠƒeƒB
+// ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½eï¿½Bï¿½ï¿½ï¿½eï¿½B
 Point3d point3d_add(Point3d a, Point3d b);
 Point3d point3d_mul(Point3d v, float k);
 Point3d point3d_normalize(Point3d v);
-// •¨—XV
+// ï¿½ï¿½ï¿½ï¿½ï¿½Xï¿½V
 void update_ball(Ball *ball, float dt);
-// ƒoƒEƒ“ƒhˆ—
+// ï¿½oï¿½Eï¿½ï¿½ï¿½hï¿½ï¿½ï¿½ï¿½
 void handle_bounce(Ball *bsall, float ground_y, float restitution);
-// ƒ‰ƒPƒbƒg‚Ì‘Å‹…ˆ—
+// ï¿½ï¿½ï¿½Pï¿½bï¿½gï¿½Ì‘Å‹ï¿½ï¿½ï¿½ï¿½ï¿½
 void handle_racket_hit(Ball *ball, Point3d direction, float power);
 #endif
