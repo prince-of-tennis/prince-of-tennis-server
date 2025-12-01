@@ -2,7 +2,7 @@
 #ifndef BALL_PHYSICS_H
 #define BALL_PHYSICS_H
 
-#include "ball.h"
+#include "common/ball.h"
 // �x�N�g�����[�e�B���e�B
 Point3d point3d_add(Point3d a, Point3d b);
 Point3d point3d_mul(Point3d v, float k);

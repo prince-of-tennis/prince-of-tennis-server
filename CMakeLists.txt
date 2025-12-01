@@ -26,7 +26,7 @@ add_executable(server ${SOURCES})
 # -----------------
 target_include_directories(server PRIVATE
     "src" ,
-    "libs/common/src" ,
+    "libs/" ,
     ${SDL2_NET_INCLUDE_DIRS} # PkgConfigで見つけたパス
 )
 
