@@ -1,26 +1,30 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <stdbool.h>
 #include <SDL2/SDL_net.h>
+#include <iostream>
 
-// サーバー設定
-#define MAX_CLIENTS 16
-#define SERVER_PORT 5000
+#define MAX_CLIENTS 4
+#define REQUIRED_CLIENTS 2
+#define SERVER_PORT 5000  // ← これを追加！！
 
-// クライアント情報
-typedef struct
+struct Client
 {
-    TCPsocket socket;
-    bool connected;
-} Client;
+    TCPsocket socket = nullptr;
+    bool connected = false;
+};
 
-// 公開API
+// サーバー側
 TCPsocket network_init_server(int port);
 TCPsocket network_accept_client(TCPsocket server_socket, Client clients[]);
+void wait_for_clients(TCPsocket server_socket, Client clients[]);
+void network_shutdown_server(TCPsocket server_socket);
+
+// 通信
 int network_send(TCPsocket client_socket, const void *data, int size);
 int network_receive(TCPsocket client_socket, void *buffer, int size);
+
+// クライアント管理
 void network_close_client(Client *client);
-void network_shutdown_server(TCPsocket server_socket);
 
 #endif

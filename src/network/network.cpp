@@ -1,131 +1,146 @@
 #include "network.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
+#include <SDL2/SDL_net.h>
+#include <iostream>
 
-#define REQUIRED_CLIENTS 2   // ← 必要なクライアント人数を設定
+using namespace std;
 
+// -----------------------------------------------------
 // サーバー初期化
+// -----------------------------------------------------
 TCPsocket network_init_server(int port)
 {
     if (SDLNet_Init() < 0)
     {
-        printf("SDLNet_Init error: %s\n", SDLNet_GetError());
-        return NULL;
+        cout << "SDLNet_Init error: " << SDLNet_GetError() << endl;
+        return nullptr;
     }
 
     IPaddress ip;
-
-    if (SDLNet_ResolveHost(&ip, NULL, port) < 0)
+    if (SDLNet_ResolveHost(&ip, nullptr, port) < 0)
     {
-        printf("SDLNet_ResolveHost error: %s\n", SDLNet_GetError());
-        return NULL;
+        cout << "SDLNet_ResolveHost error: " << SDLNet_GetError() << endl;
+        return nullptr;
     }
 
-    TCPsocket server_socket = SDLNet_TCP_Open(&ip);
-    if (!server_socket)
+    TCPsocket server = SDLNet_TCP_Open(&ip);
+    if (!server)
     {
-        printf("SDLNet_TCP_Open error: %s\n", SDLNet_GetError());
-        return NULL;
+        cout << "SDLNet_TCP_Open error: " << SDLNet_GetError() << endl;
+        return nullptr;
     }
 
-    printf("[SERVER] Listening on port %d...\n", port);
-    return server_socket;
+    cout << "[SERVER] Listening on port " << port << " ..." << endl;
+
+    return server;
 }
 
-// クライアント接続受付
+// -----------------------------------------------------
+// クライアント受け付け
+// -----------------------------------------------------
 TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
 {
-    TCPsocket client_socket = SDLNet_TCP_Accept(server_socket);
+    TCPsocket client = SDLNet_TCP_Accept(server_socket);
+    if (!client)
+        return nullptr;
 
-    if (!client_socket)
-    {
-        return NULL;
-    }
-
-    // 空いてるスロットに登録
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         if (!clients[i].connected)
         {
-            clients[i].socket = client_socket;
+            clients[i].socket = client;
             clients[i].connected = true;
 
-            printf("[SERVER] Client connected (Slot %d)\n", i);
+            cout << "[SERVER] Client connected (slot " << i << ")" << endl;
 
-            return client_socket;
+            return client;
         }
     }
 
-    printf("Server full, rejecting client.\n");
-    SDLNet_TCP_Close(client_socket);
-    return NULL;
+    cout << "[SERVER] Server full, rejecting client." << endl;
+    SDLNet_TCP_Close(client);
+    return nullptr;
 }
 
-// ここから追加 ------------------------------
-
-// 必要人数揃うまで待つ
+// -----------------------------------------------------
+// 必要人数揃うまで完全にブロッキングして待つ
+// -----------------------------------------------------
 void wait_for_clients(TCPsocket server_socket, Client clients[])
 {
-    printf("[SERVER] 他のクラインアントの接続を待っています。\n", REQUIRED_CLIENTS);
+    cout << "[SERVER] Waiting for other clients..." << endl;
 
-    while (1)
+    // サーバーソケットを監視するセット
+    SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
+    SDLNet_TCP_AddSocket(socketSet, server_socket);
+
+    while (true)
     {
+        // クライアント接続があるまで無限に待つ
+        int numReady = SDLNet_CheckSockets(socketSet, -1);  // -1 = 無限待ち
+
+        if (numReady > 0)
+        {
+            network_accept_client(server_socket, clients);
+        }
+
+        // 現在の接続数をカウント
         int connected_count = 0;
 
-        // 接続受付
-        network_accept_client(server_socket, clients);
-
-        // 現在の接続数を数える
         for (int i = 0; i < MAX_CLIENTS; i++)
         {
             if (clients[i].connected)
                 connected_count++;
         }
 
-        printf("[SERVER] Connected clients: %d / %d\n",
-               connected_count, REQUIRED_CLIENTS);
+        cout << "[SERVER] Connected clients: "
+             << connected_count << " / " << REQUIRED_CLIENTS << endl;
 
-        // 必要人数に達したら抜ける
+        // 必要人数が揃ったら抜ける
         if (connected_count >= REQUIRED_CLIENTS)
         {
-            printf("[SERVER] All clients connected! Starting game...\n");
+            cout << "[SERVER] 全員接続完了！ゲーム開始！" << endl;
             break;
         }
     }
+
+    SDLNet_FreeSocketSet(socketSet);
 }
 
-
+// -----------------------------------------------------
 // データ送信
+// -----------------------------------------------------
 int network_send(TCPsocket client_socket, const void *data, int size)
 {
     return SDLNet_TCP_Send(client_socket, data, size);
 }
 
+// -----------------------------------------------------
 // データ受信
+// -----------------------------------------------------
 int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
     return SDLNet_TCP_Recv(client_socket, buffer, size);
 }
 
+// -----------------------------------------------------
 // クライアント切断
+// -----------------------------------------------------
 void network_close_client(Client *client)
 {
     if (client->connected)
     {
         SDLNet_TCP_Close(client->socket);
-        client->connected = false;
-        client->socket = NULL;
 
-        printf("[SERVER] Client disconnected.\n");
+        client->socket = nullptr;
+        client->connected = false;
+
+        cout << "[SERVER] Client disconnected." << endl;
     }
 }
 
+// -----------------------------------------------------
 // サーバー終了
+// -----------------------------------------------------
 void network_shutdown_server(TCPsocket server_socket)
 {
     SDLNet_TCP_Close(server_socket);
