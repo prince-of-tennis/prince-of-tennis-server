@@ -2,7 +2,7 @@
 #define PLAYER_H
 
 #include <string>
-#include "point_3d.h"
+#include "util/point_3d.h"
 #include "player.h"
 
 void player_init(Player &player, const std::string &name, float x, float y, float z);
