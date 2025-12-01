@@ -1,9 +1,6 @@
-#ifndef INPUT_HANDLER_H
-#define INPUT_HANDLER_H
+#pragma once
 
-#include "../objects/player.h"
-#include "../controller/controller.h" // PlayerInput ‚ª’è‹`‚³‚ê‚Ä‚¢‚é
+#include "player.h"
+#include "player_input.h"
 
 void apply_player_input(Player &player, const PlayerInput &input, float deltaTime);
-
-#endif
