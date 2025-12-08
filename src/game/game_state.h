@@ -9,10 +9,11 @@ typedef struct
 {
     Ball ball;
     GameScore score;
-    GamePhase phase;
     float state_timer;
+
+    GamePhase current_phase;
 } GameState;
 
 void init_game(GameState *state);
-
+void update_game(GameState *state, float dt);
 #endif
