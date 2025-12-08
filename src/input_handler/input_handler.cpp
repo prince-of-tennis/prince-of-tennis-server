@@ -1,26 +1,58 @@
 #include "input_handler.h"
 #include "player/player_manneger.h"
+#include "physics/ball_physics.h"
+#include <math.h>
 
-void apply_player_input(Player &player, const PlayerInput &input, float deltaTime)
+#define RACKET_REACH 2.0f // ƒ‰ƒPƒbƒg‚ª“Í‚­‹——£
+#define SMASH_HEIGHT 2.0f // ƒXƒ}ƒbƒVƒ…‚ª‚Å‚«‚é‚‚³”»’èi¡‰ñ‚ÍŠÈˆÕ“I‚Ég—pj
+#define BASE_POWER 25.0f  // Šî–{‚Ì‘Å‹…ƒpƒ[
+
+void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, float deltaTime)
 {
-    float dx = 0.0f;
-    float dy = 0.0f;
+    float move_x = 0.0f;
+    float move_z = 0.0f; // Z²i‘OŒãj—p‚Ì•Ï”
 
+    // --- 1. ˆÚ“®ˆ— ---
     if (input.right)
-        dx += 1.0f;
+        move_x += 1.0f;
     if (input.left)
-        dx -= 1.0f;
+        move_x -= 1.0f;
+
     if (input.front)
-        dy += 1.0f;
+        move_z -= 1.0f;
     if (input.back)
-        dy -= 1.0f;
+        move_z += 1.0f;
 
-    // ï¿½Ú“ï¿½ï¿½ï¿½ï¿½ï¿½
-    player_move(player, dx, dy, 0.0f, deltaTime);
+    // ƒvƒŒƒCƒ„[‚ÌˆÚ“®‚ğÀs (Y²=0.0f‚Å’n–ÊˆÚ“®)
+    player_move(player, move_x, 0.0f, move_z, deltaTime);
 
-    // ï¿½ï¿½ï¿½Pï¿½bï¿½gï¿½Uï¿½èˆï¿½ï¿½
+    // --- 2. ƒ‰ƒPƒbƒg‘Å‹…ˆ— ---
     if (input.swing)
     {
-        // TODO: ï¿½Xï¿½Cï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½ï¿½ï¿½{ï¿½[ï¿½ï¿½ï¿½Æ‚ÌÕ“Ëï¿½ï¿½ï¿½
+
+        float dx = player.point.x - ball.point.x;
+        float dz = player.point.z - ball.point.z;
+        float dist = sqrtf(dx * dx + dz * dz);
+
+        if (dist <= RACKET_REACH)
+        {
+            // ‘Å‚Â•ûŒü‚ğŒˆ‚ß‚é
+            Point3d dir;
+            dir.x = 0.0f; // ¶‰E‚Í‘_‚í‚¸Aí‚ÉƒZƒ“ƒ^[i^‚ñ’†j‚Ö•Ô‚·
+            dir.y = 0.5f; // ­‚µ‘Å‚¿ã‚°‚é
+
+            // ©•ª‚ªuè‘O(Z>0)v‚É‚¢‚é‚È‚çu‰œ(Z=-1)v‚ÖA‹t‚È‚çè‘O‚Ö‘Å‚Â
+            if (player.point.z > 0)
+            {
+                dir.z = -1.0f;
+            }
+            else
+            {
+                dir.z = 1.0f;
+            }
+
+            handle_racket_hit(&ball, dir, BASE_POWER);
+            printf("[ACTION] Swing & Hit! Dir Z: %.1f\n", dir.z);
+        }
     }
 }
