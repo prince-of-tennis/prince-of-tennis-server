@@ -11,7 +11,9 @@ typedef struct
     GameScore score;
     float state_timer;
 
-    GamePhase current_phase;
+    GamePhase phase;
+
+    int server_player_id;
 } GameState;
 
 void init_game(GameState *state);
