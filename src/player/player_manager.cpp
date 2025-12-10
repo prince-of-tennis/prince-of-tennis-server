@@ -1,8 +1,8 @@
 #include "common/player.h"
-#include "player_manneger.h"
+#include "player_manager.h"
 #include <cmath>
 
-// ï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½
 void player_init(Player &player, const std::string &name, float x, float y, float z)
 {
     player.name = name;
@@ -10,7 +10,7 @@ void player_init(Player &player, const std::string &name, float x, float y, floa
     player.speed = 5.0f;
 }
 
-// ï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½Ú“ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½éˆï¿½ï¿½
+// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½Ú“ï¿½?¿½?¿½?¿½?¿½?¿½éˆï¿½?¿½
 void player_move(Player &player, float dx, float dy, float dz, float deltaTime)
 {
     float len = std::sqrt(dx * dx + dy * dy + dz * dz);
@@ -27,7 +27,7 @@ void player_move(Player &player, float dx, float dy, float dz, float deltaTime)
     player.point.z += dz * player.speed * deltaTime;
 }
 
-// ï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½wï¿½ï¿½ï¿½ï¿½Wï¿½Öƒï¿½ï¿½[ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½iï¿½â•ï¿½pï¿½j
+// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½w?¿½?¿½?¿½?¿½W?¿½Ö??¿½?¿½[?¿½v?¿½?¿½?¿½?¿½?¿½?¿½i?¿½â•ï¿½p?¿½j
 void player_set_position(Player &player, float x, float y, float z)
 {
     player.point.x = x;
