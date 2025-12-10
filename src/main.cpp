@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_net.h>
 
 #include "network/network.h"
 #include "game/game_state.h"
 #include "physics/ball_physics.h"
+#include "common/packet.h"
 
 Client clients[MAX_CLIENTS] = {0};
 
@@ -24,10 +26,10 @@ int main(int argc, char *argv[])
 
     const float dt = 0.016f; // 60FPS
 
-    // --- ここで必要人数揃うまで待つ ---
+    // --- ここで必要人数が集まるまで待つ ---
     wait_for_clients(server_socket, clients);
 
-    // --- ソケットセットの作成 ---
+    // --- ソケットセット作成 ---
     SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
     if (!socket_set)
     {
@@ -83,6 +85,27 @@ int main(int argc, char *argv[])
         // --- 物理更新 ---
         update_ball(&state.ball, dt);
         handle_bounce(&state.ball, 0.0f, 0.7f);
+
+        // --- ボール座標の送信処理---
+        {
+            Packet ball_packet;
+            memset(&ball_packet, 0, sizeof(Packet));
+            ball_packet.type = PACKET_TYPE_BALL_STATE;
+            ball_packet.size = sizeof(Point3d);
+
+            memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
+
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if (clients[i].connected)
+                {
+                    if (network_send(clients[i].socket, &ball_packet, sizeof(Packet)) < sizeof(Packet))
+                    {
+                        printf("[SERVER] Send error to client %d: %s\n", i, SDLNet_GetError());
+                    }
+                }
+            }
+        }
 
         // --- デバッグログ ---
         printf("Ball: (%.2f, %.2f, %.2f)\n",
