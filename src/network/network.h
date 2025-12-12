@@ -3,11 +3,11 @@
 
 #include <SDL2/SDL_net.h>
 #include <iostream>
+#include "common/packet.h"
 
 #define MAX_CLIENTS 4
 #define REQUIRED_CLIENTS 2
-#define SERVER_PORT 5000  // ← これを追加！！
-
+#define SERVER_PORT 5000
 struct Client
 {
     TCPsocket socket = nullptr;
@@ -27,4 +27,6 @@ int network_receive(TCPsocket client_socket, void *buffer, int size);
 // クライアント管理
 void network_close_client(Client *client);
 
+// 全クライアントへの一斉送信関数
+void network_broadcast(Client clients[], PacketType type, const void *data, size_t data_size);
 #endif
