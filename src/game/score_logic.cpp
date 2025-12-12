@@ -74,10 +74,10 @@ WIN_GAME:
 
         // 次のセットへ
         score->current_set++;
-        if (score->current_set >= MAX_SETS)
+        if (match_finished(score))
         {
             printf("[SCORE] MATCH FINISHED! Player %d WINS!\n", winner + 1);
-            return false; // マッチ終了
+            return false;
         }
     }
 
@@ -99,4 +99,13 @@ void print_score(const GameScore *score)
     {
         printf("Match Finished.\n");
     }
+}
+
+// ========================================================
+// マッチ終了判定の実装
+// ========================================================
+bool match_finished(const GameScore *score)
+{
+    // 現在のセット番号が MAX_SETS (例: 1または3) に達していたら終了とみなす
+    return score->current_set >= MAX_SETS;
 }

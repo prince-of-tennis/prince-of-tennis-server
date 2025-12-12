@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL_net.h>
 #include <iostream>
+#include <cstring>
 
 using namespace std;
 
@@ -76,7 +77,7 @@ void wait_for_clients(TCPsocket server_socket, Client clients[])
     while (true)
     {
         // クライアント接続があるまで無限に待つ
-        int numReady = SDLNet_CheckSockets(socketSet, -1);  // -1 = 無限待ち
+        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = 無限待ち
 
         if (numReady > 0)
         {
@@ -145,4 +146,38 @@ void network_shutdown_server(TCPsocket server_socket)
 {
     SDLNet_TCP_Close(server_socket);
     SDLNet_Quit();
+}
+
+// =====================================================
+// 汎用ブロードキャスト関数の実装
+// =====================================================
+
+void network_broadcast(Client clients[], PacketType type, const void *data, size_t data_size)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+
+    packet.type = type;
+    packet.size = data_size;
+
+    if (data != nullptr && data_size > 0)
+    {
+        if (data_size > sizeof(packet.data))
+        {
+            cout << "[SERVER] Error: Data too large for packet!" << endl;
+            return;
+        }
+        memcpy(packet.data, data, data_size);
+    }
+
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (clients[i].connected)
+        {
+            if (network_send(clients[i].socket, &packet, sizeof(Packet)) < (int)sizeof(Packet))
+            {
+                cout << "[SERVER] Send error to client " << i << ": " << SDLNet_GetError() << endl;
+            }
+        }
+    }
 }

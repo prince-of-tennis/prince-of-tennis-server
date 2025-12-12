@@ -9,5 +9,5 @@ void init_score(GameScore *score);
 bool add_point(GameScore *score, int player_index);
 
 void print_score(const GameScore *score);
-
+bool match_finished(const GameScore *score);
 #endif // SCORE_LOGIC_H

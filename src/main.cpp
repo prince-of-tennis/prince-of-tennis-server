@@ -8,6 +8,7 @@
 #include "game/game_state.h"
 #include "physics/ball_physics.h"
 #include "common/packet.h"
+#include "game/game_phase_manager.h"
 
 Client clients[MAX_CLIENTS] = {0};
 
@@ -23,11 +24,14 @@ int main(int argc, char *argv[])
 
     GameState state;
     init_game(&state);
+    init_phase_manager(&state);
 
     const float dt = 0.016f; // 60FPS
 
     // --- ここで必要人数が集まるまで待つ ---
     wait_for_clients(server_socket, clients);
+
+    update_game_phase(&state, GAME_PHASE_MATCH_COMPLETE);
 
     // --- ソケットセット作成 ---
     SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
@@ -41,6 +45,9 @@ int main(int argc, char *argv[])
     SDLNet_TCP_AddSocket(socket_set, server_socket);
 
     printf("[SERVER] Game started!\n");
+
+    // 前回のフェーズを記憶する変数（変更検知用）
+    GamePhase last_sent_phase = (GamePhase)-1;
 
     while (1)
     {
@@ -87,24 +94,21 @@ int main(int argc, char *argv[])
         handle_bounce(&state.ball, 0.0f, 0.7f);
 
         // --- ボール座標の送信処理---
+        network_broadcast(clients, PACKET_TYPE_BALL_STATE, &state.ball.point, sizeof(Point3d));
+
+        // --- ゲームフェーズ更新 ---
+        update_phase(&state, dt);
+        if (state.phase != last_sent_phase)
         {
-            Packet ball_packet;
-            memset(&ball_packet, 0, sizeof(Packet));
-            ball_packet.type = PACKET_TYPE_BALL_STATE;
-            ball_packet.size = sizeof(Point3d);
+            printf("[SERVER] Phase Changed: %d -> %d\n", last_sent_phase, state.phase);
 
-            memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
+            // フェーズ変更パケットを全員に送信
+            network_broadcast(clients,
+                              PACKET_TYPE_GAME_PHASE,
+                              &state.phase,
+                              sizeof(GamePhase));
 
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (clients[i].connected)
-                {
-                    if (network_send(clients[i].socket, &ball_packet, sizeof(Packet)) < sizeof(Packet))
-                    {
-                        printf("[SERVER] Send error to client %d: %s\n", i, SDLNet_GetError());
-                    }
-                }
-            }
+            last_sent_phase = state.phase;
         }
 
         // --- デバッグログ ---
