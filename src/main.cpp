@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_net.h>
 
 #include "network/network.h"
 #include "game/game_state.h"
 #include "physics/ball_physics.h"
+#include "common/packet.h"
+#include "game/game_phase_manager.h"
 
 Client clients[MAX_CLIENTS] = {0};
 
@@ -21,13 +24,16 @@ int main(int argc, char *argv[])
 
     GameState state;
     init_game(&state);
+    init_phase_manager(&state);
 
     const float dt = 0.016f; // 60FPS
 
-    // --- ここで必要人数揃うまで待つ ---
+    // --- ここで必要人数が集まるまで待つ ---
     wait_for_clients(server_socket, clients);
 
-    // --- ソケットセットの作成 ---
+    update_game_phase(&state, GAME_PHASE_MATCH_COMPLETE);
+
+    // --- ソケットセット作成 ---
     SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
     if (!socket_set)
     {
@@ -39,6 +45,9 @@ int main(int argc, char *argv[])
     SDLNet_TCP_AddSocket(socket_set, server_socket);
 
     printf("[SERVER] Game started!\n");
+
+    // 前回のフェーズを記憶する変数（変更検知用）
+    GamePhase last_sent_phase = (GamePhase)-1;
 
     while (1)
     {
@@ -83,6 +92,24 @@ int main(int argc, char *argv[])
         // --- 物理更新 ---
         update_ball(&state.ball, dt);
         handle_bounce(&state.ball, 0.0f, 0.7f);
+
+        // --- ボール座標の送信処理---
+        network_broadcast(clients, PACKET_TYPE_BALL_STATE, &state.ball.point, sizeof(Point3d));
+
+        // --- ゲームフェーズ更新 ---
+        update_phase(&state, dt);
+        if (state.phase != last_sent_phase)
+        {
+            printf("[SERVER] Phase Changed: %d -> %d\n", last_sent_phase, state.phase);
+
+            // フェーズ変更パケットを全員に送信
+            network_broadcast(clients,
+                              PACKET_TYPE_GAME_PHASE,
+                              &state.phase,
+                              sizeof(GamePhase));
+
+            last_sent_phase = state.phase;
+        }
 
         // --- デバッグログ ---
         printf("Ball: (%.2f, %.2f, %.2f)\n",
