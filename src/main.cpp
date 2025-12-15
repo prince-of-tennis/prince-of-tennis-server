@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
 
     // 前回のフェーズを記憶する変数（変更検知用）
     GamePhase last_sent_phase = (GamePhase)-1;
+    // 前回のスコアを記憶する変数（変更検知用）
+    GameScore last_sent_score = state.score;
 
     while (1)
     {
@@ -129,6 +131,38 @@ int main(int argc, char *argv[])
                               PACKET_TYPE_PLAYER_STATE,
                               &p_packet,
                               sizeof(PlayerStatePacket));
+        }
+
+        // --- スコア送信 ---
+        if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
+        {
+            printf("[SERVER] Score Changed! Broadcasting...\n");
+
+            ScorePacket s_packet;
+            // 現在のポイント (0, 15, 30, 40...)
+            s_packet.current_game_p1 = state.score.current_game_p1;
+            s_packet.current_game_p2 = state.score.current_game_p2;
+
+            // 現在のセットのゲーム取得数
+            int current_set = state.score.current_set;
+            if (current_set >= MAX_SETS)
+                current_set = MAX_SETS - 1;
+
+            s_packet.games_p1 = state.score.games_in_set[current_set][0];
+            s_packet.games_p2 = state.score.games_in_set[current_set][1];
+
+            // セット取得数はまだ実装していない場合は 0 でOK
+            s_packet.sets_p1 = 0;
+            s_packet.sets_p2 = 0;
+
+            // 全員に送信
+            network_broadcast(clients,
+                              PACKET_TYPE_SCORE_UPDATE,
+                              &s_packet,
+                              sizeof(ScorePacket));
+
+            // 送信したので「前回のスコア」を更新
+            last_sent_score = state.score;
         }
 
         // --- ゲームフェーズ更新 ---
