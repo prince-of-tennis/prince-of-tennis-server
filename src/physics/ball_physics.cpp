@@ -1,7 +1,7 @@
 #include "ball_physics.h"
 #include <math.h>
 
-// ƒxƒNƒgƒ‹ŒvŽZ
+// ãƒ™ã‚¯ãƒˆãƒ«è¨ˆç®—
 Point3d point3d_add(Point3d a, Point3d b)
 {
     Point3d r = {a.x + b.x, a.y + b.y, a.z + b.z};
@@ -23,17 +23,17 @@ Point3d point3d_normalize(Point3d v)
     return r;
 }
 
-// •¨—XV
+// ãƒœãƒ¼ãƒ«ã®æ›´æ–°
 void update_ball(Ball *ball, float dt)
 {
-    // d—Íiy•ûŒü‚ð‰º‚Éj
+    // é‡åŠ› (Yè»¸ãƒžã‚¤ãƒŠã‚¹æ–¹å‘ã¸)
     ball->velocity.y -= 9.8f * dt;
 
-    // ˆÊ’uXV
+    // ä½ç½®ã®æ›´æ–°
     ball->point = point3d_add(ball->point, point3d_mul(ball->velocity, dt));
 }
 
-// ƒoƒEƒ“ƒhˆ—
+// ãƒã‚¦ãƒ³ãƒ‰å‡¦ç†
 void handle_bounce(Ball *ball, float ground_y, float restitution)
 {
     if (ball->point.y <= ground_y)
@@ -43,7 +43,7 @@ void handle_bounce(Ball *ball, float ground_y, float restitution)
     }
 }
 
-// ƒ‰ƒPƒbƒg‘Å‹…ˆ—
+// ãƒ©ã‚±ãƒƒãƒˆã§ã®æ‰“æ’ƒå‡¦ç†
 void handle_racket_hit(Ball *ball, Point3d direction, float power)
 {
     Point3d dir = point3d_normalize(direction);

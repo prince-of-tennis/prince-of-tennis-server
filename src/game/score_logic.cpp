@@ -16,11 +16,11 @@ void init_score(GameScore *score)
 
 bool add_point(GameScore *score, int winner)
 {
-    // Ÿ‚Á‚½•û‚Æ•‰‚¯‚½•û‚ÌŒ»İ‚Ìƒ|ƒCƒ“ƒg‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğæ“¾
+    // å‹è€…ã¨æ•—è€…ã®ç¾åœ¨ã®ãƒã‚¤ãƒ³ãƒˆã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’å–å¾—
     int *win_pt = (winner == 0) ? &score->current_game_p1 : &score->current_game_p2;
     int *lose_pt = (winner == 0) ? &score->current_game_p2 : &score->current_game_p1;
 
-    // ƒ|ƒCƒ“ƒg‰ÁZƒƒWƒbƒN
+    // ãƒã‚¤ãƒ³ãƒˆåŠ ç®—ãƒ­ã‚¸ãƒƒã‚¯
     if (*win_pt == 0)
     {
         *win_pt = 15;
@@ -37,17 +37,17 @@ bool add_point(GameScore *score, int winner)
     {
         if (*lose_pt < 40)
         {
-            // ƒQ[ƒ€Šl“¾
+            // ã‚²ãƒ¼ãƒ ç²å¾— (ç›¸æ‰‹ãŒ40æœªæº€ãªã‚‰å‹ã¡)
             goto WIN_GAME;
         }
         else if (*lose_pt == 40)
         {
-            // ƒfƒ…[ƒX‚©‚çƒAƒhƒoƒ“ƒe[ƒW‚Ö
-            *win_pt = 50; // ƒAƒhƒoƒ“ƒe[ƒW‚ğ50‚Å•\Œ»
+            // ãƒ‡ãƒ¥ãƒ¼ã‚¹ã‹ã‚‰ã‚¢ãƒ‰ãƒãƒ³ãƒ†ãƒ¼ã‚¸ã¸
+            *win_pt = 50; // ã‚¢ãƒ‰ãƒãƒ³ãƒ†ãƒ¼ã‚¸ã‚’50ã§è¡¨ç¾
         }
         else if (*lose_pt == 50)
         {
-            // ‘Šè‚ÌƒAƒhƒoƒ“ƒe[ƒW‚ğæ‚èÁ‚µAƒfƒ…[ƒX‚É–ß‚·
+            // ç›¸æ‰‹ã®ã‚¢ãƒ‰ãƒãƒ³ãƒ†ãƒ¼ã‚¸ã‚’ç›¸æ®ºã€ãƒ‡ãƒ¥ãƒ¼ã‚¹ã«æˆ»ã‚‹
             *lose_pt = 40;
             *win_pt = 40;
         }
@@ -55,24 +55,25 @@ bool add_point(GameScore *score, int winner)
 
     else if (*win_pt == 50)
     {
+        // ã‚¢ãƒ‰ãƒãƒ³ãƒ†ãƒ¼ã‚¸çŠ¶æ…‹ã§ãƒã‚¤ãƒ³ãƒˆå–ã£ãŸã®ã§ã‚²ãƒ¼ãƒ ç²å¾—
         goto WIN_GAME;
     }
     return true;
 
 WIN_GAME:
-    // ƒQ[ƒ€Šl“¾ˆ—
+    // ã‚²ãƒ¼ãƒ ç²å¾—å‡¦ç†
     score->games_in_set[score->current_set][winner]++;
     score->current_game_p1 = 0;
     score->current_game_p2 = 0;
 
     printf("[SCORE] Player %d wins the GAME!\n", winner + 1);
 
-    // --- ƒZƒbƒgI—¹”»’è (ŠÈˆÕ”Å: 6ƒQ[ƒ€ææ) ---
+    // --- ã‚»ãƒƒãƒˆçµ‚äº†åˆ¤å®š (ç°¡æ˜“ç‰ˆ: 6ã‚²ãƒ¼ãƒ å…ˆå–) ---
     if (score->games_in_set[score->current_set][winner] >= 6)
     {
         printf("[SCORE] Player %d wins the SET %d!\n", winner + 1, score->current_set + 1);
 
-        // Ÿ‚ÌƒZƒbƒg‚Ö
+        // æ¬¡ã®ã‚»ãƒƒãƒˆã¸
         score->current_set++;
         if (match_finished(score))
         {
@@ -102,10 +103,10 @@ void print_score(const GameScore *score)
 }
 
 // ========================================================
-// ƒ}ƒbƒ`I—¹”»’è‚ÌÀ‘•
+// ãƒãƒƒãƒçµ‚äº†åˆ¤å®šã®å®Ÿè£…
 // ========================================================
 bool match_finished(const GameScore *score)
 {
-    // Œ»İ‚ÌƒZƒbƒg”Ô†‚ª MAX_SETS (—á: 1‚Ü‚½‚Í3) ‚É’B‚µ‚Ä‚¢‚½‚çI—¹‚Æ‚İ‚È‚·
+    // ç¾åœ¨ã®ã‚»ãƒƒãƒˆç•ªå·ãŒ MAX_SETS (ä¾‹: 1ã¾ãŸã¯3) ã«é”ã—ã¦ã„ãŸã‚‰çµ‚äº†ã¨ã¿ãªã™
     return score->current_set >= MAX_SETS;
 }

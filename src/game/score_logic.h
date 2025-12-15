@@ -3,11 +3,12 @@
 
 #include "common/GameScore.h"
 
-// ƒXƒRƒA‚ğ‰Šú‰»i0-0 ƒXƒ^[ƒgj‚É‚·‚éŠÖ”
+// ã‚¹ã‚³ã‚¢ã‚’åˆæœŸåŒ– (0-0 ã‚¹ã‚¿ãƒ¼ãƒˆ) ã™ã‚‹é–¢æ•°
 void init_score(GameScore *score);
-// ƒ|ƒCƒ“ƒg‚ğ‰ÁZ‚·‚éŠÖ”
+// ãƒã‚¤ãƒ³ãƒˆã‚’åŠ ç®—ã™ã‚‹é–¢æ•°
 bool add_point(GameScore *score, int player_index);
-
+// ã‚¹ã‚³ã‚¢ã‚’è¡¨ç¤ºã™ã‚‹é–¢æ•°
 void print_score(const GameScore *score);
+// ãƒãƒƒãƒçµ‚äº†åˆ¤å®š
 bool match_finished(const GameScore *score);
 #endif // SCORE_LOGIC_H

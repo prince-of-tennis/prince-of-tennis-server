@@ -1,16 +1,15 @@
-// ball_physics.h
 #ifndef BALL_PHYSICS_H
 #define BALL_PHYSICS_H
 
 #include "common/ball.h"
-// �x�N�g�����[�e�B���e�B
+// ベクトルユーティリティ（計算用
 Point3d point3d_add(Point3d a, Point3d b);
 Point3d point3d_mul(Point3d v, float k);
 Point3d point3d_normalize(Point3d v);
-// �����X�V
+// ボールの更新
 void update_ball(Ball *ball, float dt);
-// �o�E���h����
-void handle_bounce(Ball *bsall, float ground_y, float restitution);
-// ���P�b�g�̑ŋ�����
+// バウンド処理
+void handle_bounce(Ball *ball, float ground_y, float restitution);
+// ラケットでの打撃処理
 void handle_racket_hit(Ball *ball, Point3d direction, float power);
 #endif
