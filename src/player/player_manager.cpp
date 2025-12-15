@@ -1,8 +1,9 @@
 #include "common/player.h"
 #include "player_manager.h"
+#include "common/player_input.h" // PlayerInputã®å®šç¾©ã®ãŸã‚ã«ã‚¤ãƒ³ã‚¯ãƒ«ãƒ¼ãƒ‰
 #include <cmath>
 
-// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½?¿½
+// ?æ‹·v?æ‹·?æ‹·?æ‹·C?æ‹·?æ‹·?æ‹·[?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·
 void player_init(Player &player, const std::string &name, float x, float y, float z)
 {
     player.name = name;
@@ -10,7 +11,7 @@ void player_init(Player &player, const std::string &name, float x, float y, floa
     player.speed = 5.0f;
 }
 
-// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½Ú“ï¿½?¿½?¿½?¿½?¿½?¿½éˆï¿½?¿½
+// ?æ‹·v?æ‹·?æ‹·?æ‹·C?æ‹·?æ‹·?æ‹·[?æ‹·?æ‹·?æ‹·è¶½é”Ÿæ‹·?æ‹·?æ‹·?æ‹·?æ‹·é–ºå ¬æ‹·?æ‹·
 void player_move(Player &player, float dx, float dy, float dz, float deltaTime)
 {
     float len = std::sqrt(dx * dx + dy * dy + dz * dz);
@@ -27,10 +28,36 @@ void player_move(Player &player, float dx, float dy, float dz, float deltaTime)
     player.point.z += dz * player.speed * deltaTime;
 }
 
-// ?¿½v?¿½?¿½?¿½C?¿½?¿½?¿½[?¿½?¿½?¿½w?¿½?¿½?¿½?¿½W?¿½Ö??¿½?¿½[?¿½v?¿½?¿½?¿½?¿½?¿½?¿½i?¿½â•ï¿½p?¿½j
+// ?æ‹·v?æ‹·?æ‹·?æ‹·C?æ‹·?æ‹·?æ‹·[?æ‹·?æ‹·?æ‹·w?æ‹·?æ‹·?æ‹·?æ‹·W?æ‹·?æ‹·?æ‹·[?æ‹·v?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·?æ‹·i?æ‹·éˆ´æ›ªæ‹·p?æ‹·j
 void player_set_position(Player &player, float x, float y, float z)
 {
     player.point.x = x;
     player.point.y = y;
     player.point.z = z;
 }
+
+// æ–°è¦è¿½åŠ ï¼šãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å…¥åŠ›ã‚’åŸºã«ä½ç½®ã‚’æ›´æ–°ã™ã‚‹é–¢æ•°
+void player_update_position(Player &player, const PlayerInput &input, float deltaTime)
+{
+    float dx = 0.0f;
+    float dy = 0.0f; // Yè»¸æ–¹å‘ï¼ˆé«˜ã•ï¼‰ã¯åŸºæœ¬å‹•ã‹ãªã„ã¨ä»®å®š
+    float dz = 0.0f;
+
+    // å…¥åŠ›ã«åŸºã¥ãç§»å‹•æ–¹å‘ã‚’æ±ºå®š
+    if (input.right) {
+        dx += 1.0f;
+    }
+    if (input.left) {
+        dx -= 1.0f;
+    }
+    if (input.front) {
+        dz += 1.0f;
+    }
+    if (input.back) {
+        dz -= 1.0f;
+    }
+    
+    // æ—¢å­˜ã®player_moveé–¢æ•°ï¼ˆç§»å‹•é‡ã¨æ™‚é–“ã‚’è€ƒæ…®ã—ã¦ä½ç½®ã‚’æ›´æ–°ã™ã‚‹ãƒ­ã‚¸ãƒƒã‚¯ï¼‰ã‚’å‘¼ã³å‡ºã™
+    player_move(player, dx, dy, dz, deltaTime);
+}
+} // ã“ã®æ³¢æ‹¬å¼§ã¯å…ƒã®ãƒ•ã‚¡ã‚¤ãƒ«ã®æœ«å°¾ã«ã‚ã£ãŸã‚‚ã®ã§ã™ã€‚
