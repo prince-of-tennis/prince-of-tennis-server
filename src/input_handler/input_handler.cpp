@@ -1,5 +1,5 @@
 #include "input_handler.h"
-#include "player/player_manneger.h"
+#include "player/player_manager.h"
 #include "physics/ball_physics.h"
 #include <math.h>
 

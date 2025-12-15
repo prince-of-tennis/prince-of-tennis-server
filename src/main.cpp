@@ -8,6 +8,8 @@
 #include "game/game_state.h"
 #include "physics/ball_physics.h"
 #include "common/packet.h"
+#include "common/player_input.h"
+#include "input_handler/input_handler.h"
 #include "game/game_phase_manager.h"
 
 Client clients[MAX_CLIENTS] = {0};
@@ -74,8 +76,8 @@ int main(int argc, char *argv[])
             {
                 if (clients[i].connected && SDLNet_SocketReady(clients[i].socket))
                 {
-                    char buffer[256] = {0};
-                    int size = network_receive(clients[i].socket, buffer, sizeof(buffer));
+                    Packet packet;
+                    int size = network_receive(clients[i].socket, &packet, sizeof(Packet));
 
                     if (size <= 0)
                     {
@@ -84,7 +86,19 @@ int main(int argc, char *argv[])
                         continue;
                     }
 
-                    printf("[SERVER] Client %d says: %s\n", i, buffer);
+                    // パケットの種類をチェック
+                    if (packet.type == PACKET_TYPE_PLAYER_INPUT)
+                    {
+                        PlayerInput input;
+                        if (packet.size == sizeof(PlayerInput))
+                        {
+                            memcpy(&input, packet.data, sizeof(PlayerInput));
+
+                            apply_player_input(state.players[i], state.ball, input, dt);
+                        }
+                    }
+
+                    printf("[SERVER] Client %d says: %d\n", i, packet.type);
                 }
             }
         }

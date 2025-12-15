@@ -4,10 +4,13 @@
 #include "physics/ball_physics.h"
 #include "common/GameScore.h"
 #include "common/GamePhase.h"
+#include "common/player.h"
+#include "network/network.h"
 
 typedef struct
 {
     Ball ball;
+    Player players[MAX_CLIENTS];
     GameScore score;
     float state_timer;
 
