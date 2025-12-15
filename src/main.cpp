@@ -46,6 +46,14 @@ int main(int argc, char *argv[])
     // サーバーソケットをセットに追加
     SDLNet_TCP_AddSocket(socket_set, server_socket);
 
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (clients[i].connected)
+        {
+            SDLNet_TCP_AddSocket(socket_set, clients[i].socket);
+        }
+    }
+
     printf("[SERVER] Game started!\n");
 
     // 前回のフェーズを記憶する変数（変更検知用）
@@ -109,6 +117,19 @@ int main(int argc, char *argv[])
 
         // --- ボール座標の送信処理---
         network_broadcast(clients, PACKET_TYPE_BALL_STATE, &state.ball.point, sizeof(Point3d));
+
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            PlayerStatePacket p_packet;
+            p_packet.player_id = i;                     // ID (0~3)
+            p_packet.position = state.players[i].point; // 現在の座標
+
+            // 全員にブロードキャスト
+            network_broadcast(clients,
+                              PACKET_TYPE_PLAYER_STATE,
+                              &p_packet,
+                              sizeof(PlayerStatePacket));
+        }
 
         // --- ゲームフェーズ更新 ---
         update_phase(&state, dt);
