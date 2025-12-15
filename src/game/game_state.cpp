@@ -11,11 +11,11 @@ void init_game(GameState *state)
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        // –¼‘OÝ’è (char”z—ñ‘Î‰ž)
+        // åå‰è¨­å®š (charé…åˆ—å¯¾å¿œ)
         char name[32];
         sprintf(name, "Player%d", i + 1);
 
-        // ”z’u: XŽ²‚É­‚µ‚¸‚ç‚µ‚ÄAZ=12.0f(Žè‘O)‚É”z’u
+        // é…ç½®: Xè»¸ã«å°‘ã—ãšã‚‰ã—ã¦ã€Z=12.0f(å¥¥)ã«é…ç½®
         float start_x = (i - 1.5f) * 2.0f;
         float start_z = 12.0f;
 
@@ -25,7 +25,7 @@ void init_game(GameState *state)
                state->players[i].name, start_x, 0.0f, start_z);
     }
 
-    // ƒXƒRƒA‰Šú‰»
+    // ã‚¹ã‚³ã‚¢åˆæœŸåŒ–
     // state->score.server_score = 0;
     // state->score.client_score = 0;
 }

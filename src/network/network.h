@@ -14,19 +14,19 @@ struct Client
     bool connected = false;
 };
 
-// ƒT[ƒo[‘¤
+// ã‚µãƒ¼ãƒãƒ¼åˆæœŸåŒ–é–¢é€£
 TCPsocket network_init_server(int port);
 TCPsocket network_accept_client(TCPsocket server_socket, Client clients[]);
 void wait_for_clients(TCPsocket server_socket, Client clients[]);
 void network_shutdown_server(TCPsocket server_socket);
 
-// ’ÊM
+//
 int network_send(TCPsocket client_socket, const void *data, int size);
 int network_receive(TCPsocket client_socket, void *buffer, int size);
 
-// ƒNƒ‰ƒCƒAƒ“ƒgŠÇ—
+// é€šä¿¡ï¼ˆé€å—ä¿¡)
 void network_close_client(Client *client);
 
-// ‘SƒNƒ‰ƒCƒAƒ“ƒg‚Ö‚ÌˆêÄ‘—MŠÖ”
+// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆç®¡ç†
 void network_broadcast(Client clients[], PacketType type, const void *data, size_t data_size);
 #endif

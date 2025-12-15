@@ -7,7 +7,7 @@
 using namespace std;
 
 // -----------------------------------------------------
-// ƒT[ƒo[‰Šú‰»
+// ã‚µãƒ¼ãƒãƒ¼åˆæœŸåŒ–
 // -----------------------------------------------------
 TCPsocket network_init_server(int port)
 {
@@ -37,7 +37,7 @@ TCPsocket network_init_server(int port)
 }
 
 // -----------------------------------------------------
-// ƒNƒ‰ƒCƒAƒ“ƒgó‚¯•t‚¯
+// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆå—ä»˜
 // -----------------------------------------------------
 TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
 {
@@ -64,27 +64,27 @@ TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
 }
 
 // -----------------------------------------------------
-// •K—vl”‘µ‚¤‚Ü‚ÅŠ®‘S‚ÉƒuƒƒbƒLƒ“ƒO‚µ‚Ä‘Ò‚Â
+// å¿…è¦äººæ•°ãŒæƒã†ã¾ã§å®Œå…¨ã«ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã—ã¦å¾…ã¤
 // -----------------------------------------------------
 void wait_for_clients(TCPsocket server_socket, Client clients[])
 {
     cout << "[SERVER] Waiting for other clients..." << endl;
 
-    // ƒT[ƒo[ƒ\ƒPƒbƒg‚ğŠÄ‹‚·‚éƒZƒbƒg
+    // ã‚µãƒ¼ãƒãƒ¼ã‚½ã‚±ãƒƒãƒˆã‚’ç›£è¦–ã‚»ãƒƒãƒˆã«è¿½åŠ 
     SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
     SDLNet_TCP_AddSocket(socketSet, server_socket);
 
     while (true)
     {
-        // ƒNƒ‰ƒCƒAƒ“ƒgÚ‘±‚ª‚ ‚é‚Ü‚Å–³ŒÀ‚É‘Ò‚Â
-        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = –³ŒÀ‘Ò‚¿
+        // ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆæ¥ç¶šãŒæ¥ã‚‹ã¾ã§ç„¡é™ã«å¾…ã¤
+        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = ï¿½ï¿½ï¿½ï¿½ï¿½Ò‚ï¿½
 
         if (numReady > 0)
         {
             network_accept_client(server_socket, clients);
         }
 
-        // Œ»İ‚ÌÚ‘±”‚ğƒJƒEƒ“ƒg
+        // ç¾åœ¨ã®æ¥ç¶šæ•°ã‚’ã‚«ã‚¦ãƒ³ãƒˆ
         int connected_count = 0;
 
         for (int i = 0; i < MAX_CLIENTS; i++)
@@ -96,10 +96,10 @@ void wait_for_clients(TCPsocket server_socket, Client clients[])
         cout << "[SERVER] Connected clients: "
              << connected_count << " / " << REQUIRED_CLIENTS << endl;
 
-        // •K—vl”‚ª‘µ‚Á‚½‚ç”²‚¯‚é
+        // å¿…è¦äººæ•°ãŒæƒã£ãŸã‚‰ãƒ«ãƒ¼ãƒ—ã‚’æŠœã‘ã‚‹
         if (connected_count >= REQUIRED_CLIENTS)
         {
-            cout << "[SERVER] ‘SˆõÚ‘±Š®—¹IƒQ[ƒ€ŠJnI" << endl;
+            cout << "[SERVER] å…¨å“¡æ¥ç¶šå®Œäº†ï¼ã‚²ãƒ¼ãƒ é–‹å§‹ï¼" << endl;
             break;
         }
     }
@@ -108,7 +108,7 @@ void wait_for_clients(TCPsocket server_socket, Client clients[])
 }
 
 // -----------------------------------------------------
-// ƒf[ƒ^‘—M
+// ãƒ‡ãƒ¼ã‚¿é€ä¿¡
 // -----------------------------------------------------
 int network_send(TCPsocket client_socket, const void *data, int size)
 {
@@ -116,7 +116,7 @@ int network_send(TCPsocket client_socket, const void *data, int size)
 }
 
 // -----------------------------------------------------
-// ƒf[ƒ^óM
+// ãƒ‡ãƒ¼ã‚¿å—ä¿¡
 // -----------------------------------------------------
 int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
@@ -124,7 +124,7 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
 }
 
 // -----------------------------------------------------
-// ƒNƒ‰ƒCƒAƒ“ƒgØ’f
+// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆåˆ‡æ–­
 // -----------------------------------------------------
 void network_close_client(Client *client)
 {
@@ -140,7 +140,7 @@ void network_close_client(Client *client)
 }
 
 // -----------------------------------------------------
-// ƒT[ƒo[I—¹
+// ã‚µãƒ¼ãƒãƒ¼çµ‚äº†
 // -----------------------------------------------------
 void network_shutdown_server(TCPsocket server_socket)
 {
@@ -149,7 +149,7 @@ void network_shutdown_server(TCPsocket server_socket)
 }
 
 // =====================================================
-// ”Ä—pƒuƒ[ƒhƒLƒƒƒXƒgŠÖ”‚ÌÀ‘•
+// æ±ç”¨ãƒ–ãƒ­ãƒ¼ãƒ‰ã‚­ãƒ£ã‚¹ãƒˆé–¢æ•°ã®å®Ÿè£…
 // =====================================================
 
 void network_broadcast(Client clients[], PacketType type, const void *data, size_t data_size)

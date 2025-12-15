@@ -1,13 +1,12 @@
 #include "game_phase_manager.h"
 #include "score_logic.h"
 #include "physics/court_check.h"
-#include "score_logic.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TIME_AFTER_POINT 3.0f    // ���_�\�����玟�̃T�[�u�܂�
-#define TIME_MATCH_COMPLETE 2.0f // �l�������Ă���Q�[���J�n�܂�
-#define TIME_GAME_FINISHED 5.0f
+#define TIME_AFTER_POINT 3.0f    // 得点後から次のサーブまでの時間
+#define TIME_MATCH_COMPLETE 2.0f // マッチング完了（人数が揃った）後、ゲーム開始までの時間
+#define TIME_GAME_FINISHED 5.0f  // ゲーム終了後、サーバーシャットダウンまでの時間
 
 void init_phase_manager(GameState *state)
 {
@@ -51,7 +50,7 @@ void update_phase(GameState *state, float dt)
 
     switch (state->phase)
     {
-    case GAME_PHASE_MATCH_COMPLETE:
+    case GAME_PHASE_MATCH_COMPLETE: // マッチング完了 -> ゲーム開始（サーブ）へ
 
         if (state->state_timer > TIME_MATCH_COMPLETE)
         {
@@ -59,7 +58,7 @@ void update_phase(GameState *state, float dt)
         }
         break;
 
-    case GAME_PHASE_POINT_SCORED:
+    case GAME_PHASE_POINT_SCORED: // 得点後 -> 試合終了判定 or 次のサーブへ
         if (state->state_timer > TIME_AFTER_POINT)
         {
 
@@ -74,7 +73,7 @@ void update_phase(GameState *state, float dt)
         }
         break;
 
-    case GAME_PHASE_GAME_FINISHED:
+    case GAME_PHASE_GAME_FINISHED: // 試合終了 -> サーバー終了
         if (state->state_timer > TIME_GAME_FINISHED)
         {
             printf("[SERVER] Shutting down...\n");

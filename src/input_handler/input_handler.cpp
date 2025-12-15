@@ -3,16 +3,16 @@
 #include "physics/ball_physics.h"
 #include <math.h>
 
-#define RACKET_REACH 2.0f // ƒ‰ƒPƒbƒg‚ª“Í‚­‹——£
-#define SMASH_HEIGHT 2.0f // ƒXƒ}ƒbƒVƒ…‚ª‚Å‚«‚é‚‚³”»’èi¡‰ñ‚ÍŠÈˆÕ“I‚Ég—pj
-#define BASE_POWER 25.0f  // Šî–{‚Ì‘Å‹…ƒpƒ[
+#define RACKET_REACH 2.0f // ãƒ©ã‚±ãƒƒãƒˆãŒå±Šãç¯„å›²
+#define SMASH_HEIGHT 2.0f // ã‚¹ãƒãƒƒã‚·ãƒ¥ãŒã§ãã‚‹é«˜ã•ï¼ˆä»Šå›ã¯ç°¡æ˜“çš„ã«ä½¿ç”¨ï¼‰
+#define BASE_POWER 25.0f  // åŸºæœ¬ã®æ‰“çƒãƒ‘ãƒ¯ãƒ¼
 
 void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, float deltaTime)
 {
     float move_x = 0.0f;
-    float move_z = 0.0f; // Z²i‘OŒãj—p‚Ì•Ï”
+    float move_z = 0.0f; // Zè»¸ï¼ˆå‰å¾Œï¼‰ç”¨ã®å¤‰æ•°
 
-    // --- 1. ˆÚ“®ˆ— ---
+    // --- 1. ç§»å‹•å‡¦ç† ---
     if (input.right)
         move_x += 1.0f;
     if (input.left)
@@ -23,10 +23,10 @@ void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, fl
     if (input.back)
         move_z += 1.0f;
 
-    // ƒvƒŒƒCƒ„[‚ÌˆÚ“®‚ğÀs (Y²=0.0f‚Å’n–ÊˆÚ“®)
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç§»å‹•ã‚’å®Ÿè¡Œ (Yè»¸=0.0fã§åœ°é¢ç§»å‹•)
     player_move(player, move_x, 0.0f, move_z, deltaTime);
 
-    // --- 2. ƒ‰ƒPƒbƒg‘Å‹…ˆ— ---
+    // --- 2. ãƒ©ã‚±ãƒƒãƒˆã§çƒã‚’æ‰“ã¤ ---
     if (input.swing)
     {
 
@@ -36,12 +36,12 @@ void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, fl
 
         if (dist <= RACKET_REACH)
         {
-            // ‘Å‚Â•ûŒü‚ğŒˆ‚ß‚é
+            // æ‰“ã¤æ–¹å‘ã‚’æ±ºã‚ã‚‹
             Point3d dir;
-            dir.x = 0.0f; // ¶‰E‚Í‘_‚í‚¸Aí‚ÉƒZƒ“ƒ^[i^‚ñ’†j‚Ö•Ô‚·
-            dir.y = 0.5f; // ­‚µ‘Å‚¿ã‚°‚é
+            dir.x = 0.0f; // å·¦å³ã¯ç‹™ã‚ãšã€å¸¸ã«ã‚»ãƒ³ã‚¿ãƒ¼ï¼ˆãƒãƒƒãƒˆçœŸã‚“ä¸­ï¼‰ã¸è¿”ã™
+            dir.y = 0.5f; // å°‘ã—æ‰“ã¡ä¸Šã’ã‚‹
 
-            // ©•ª‚ªuè‘O(Z>0)v‚É‚¢‚é‚È‚çu‰œ(Z=-1)v‚ÖA‹t‚È‚çè‘O‚Ö‘Å‚Â
+            // è‡ªåˆ†ãŒã€Œå¥¥(Z>0)ã€ã«ã„ã‚‹ãªã‚‰ã€Œæ‰‹å‰(Z=-1)ã€ã¸ã€é€†ãªã‚‰å¥¥ã¸æ‰“ã¤
             if (player.point.z > 0)
             {
                 dir.z = -1.0f;
