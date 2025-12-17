@@ -1,14 +1,20 @@
 #include "input_handler.h"
 #include "player/player_manager.h"
 #include "physics/ball_physics.h"
+#include "game/game_phase_manager.h"
 #include <math.h>
+#include <stdio.h>
 
 #define RACKET_REACH 2.0f // ラケットが届く範囲
 #define SMASH_HEIGHT 2.0f // スマッシュができる高さ（今回は簡易的に使用）
 #define BASE_POWER 25.0f  // 基本の打球パワー
 
-void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, float deltaTime)
+void apply_player_input(GameState *state, int player_id, const PlayerInput &input, float deltaTime)
 {
+    // ショートカットを作成
+    Player &player = state->players[player_id];
+    Ball &ball = state->ball;
+
     float move_x = 0.0f;
     float move_z = 0.0f; // Z軸（前後）用の変数
 
@@ -17,7 +23,6 @@ void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, fl
         move_x += 1.0f;
     if (input.left)
         move_x -= 1.0f;
-
     if (input.front)
         move_z -= 1.0f;
     if (input.back)
@@ -52,6 +57,20 @@ void apply_player_input(Player &player, Ball &ball, const PlayerInput &input, fl
             }
 
             handle_racket_hit(&ball, dir, BASE_POWER);
+
+            // 最後に打ったプレイヤーを記録
+            ball.last_hit_player_id = player_id;
+
+            // バウンド回数をリセット
+            ball.bounce_count = 0;
+
+            // フェーズ遷移: サーブ(START_GAME)ならラリー(IN_RALLY)へ
+            if (state->phase == GAME_PHASE_START_GAME)
+            {
+                update_game_phase(state, GAME_PHASE_IN_RALLY);
+                printf("[GAME] Service Hit! Phase -> IN_RALLY\n");
+            }
+
             printf("[ACTION] Swing & Hit! Dir Z: %.1f\n", dir.z);
         }
     }
