@@ -1,5 +1,6 @@
 #include "score_logic.h"
-#include <stdio.h>
+#include "../log.h"
+#include <cstdio>
 
 void init_score(GameScore *score)
 {
@@ -71,13 +72,13 @@ WIN_GAME:
     // --- セット終了判定 (簡易版: 6ゲーム先取) ---
     if (score->games_in_set[score->current_set][winner] >= 6)
     {
-        printf("[SCORE] Player %d wins the SET %d!\n", winner + 1, score->current_set + 1);
+        LOG_SUCCESS("プレイヤー " << (winner + 1) << " がセット " << (score->current_set + 1) << " を獲得！");
 
         // 次のセットへ
         score->current_set++;
         if (match_finished(score))
         {
-            printf("[SCORE] MATCH FINISHED! Player %d WINS!\n", winner + 1);
+            LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
             return false;
         }
     }
@@ -89,16 +90,15 @@ void print_score(const GameScore *score)
 {
     if (score->current_set < MAX_SETS)
     {
-        printf("Set: %d | Games: %d - %d | Points: %d - %d\n",
-               score->current_set + 1,
-               score->games_in_set[score->current_set][0],
-               score->games_in_set[score->current_set][1],
-               score->current_game_p1,
-               score->current_game_p2);
+        LOG_INFO("セット: " << (score->current_set + 1)
+                 << " | ゲーム: " << score->games_in_set[score->current_set][0]
+                 << " - " << score->games_in_set[score->current_set][1]
+                 << " | ポイント: " << score->current_game_p1
+                 << " - " << score->current_game_p2);
     }
     else
     {
-        printf("Match Finished.\n");
+        LOG_INFO("試合終了");
     }
 }
 

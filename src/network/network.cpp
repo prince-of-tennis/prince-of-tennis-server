@@ -1,10 +1,9 @@
 #include "network.h"
+#include "../log.h"
 
 #include <SDL2/SDL_net.h>
-#include <iostream>
 #include <cstring>
 
-using namespace std;
 
 // -----------------------------------------------------
 // サーバー初期化
@@ -13,25 +12,25 @@ TCPsocket network_init_server(int port)
 {
     if (SDLNet_Init() < 0)
     {
-        cout << "SDLNet_Init error: " << SDLNet_GetError() << endl;
+        LOG_ERROR("SDLNet初期化失敗: " << SDLNet_GetError());
         return nullptr;
     }
 
     IPaddress ip;
     if (SDLNet_ResolveHost(&ip, nullptr, port) < 0)
     {
-        cout << "SDLNet_ResolveHost error: " << SDLNet_GetError() << endl;
+        LOG_ERROR("ホスト解決失敗: " << SDLNet_GetError());
         return nullptr;
     }
 
     TCPsocket server = SDLNet_TCP_Open(&ip);
     if (!server)
     {
-        cout << "SDLNet_TCP_Open error: " << SDLNet_GetError() << endl;
+        LOG_ERROR("サーバーソケット作成失敗: " << SDLNet_GetError());
         return nullptr;
     }
 
-    cout << "[SERVER] Listening on port " << port << " ..." << endl;
+    LOG_SUCCESS("サーバー起動: ポート " << port << " で待機中...");
 
     return server;
 }
@@ -39,7 +38,7 @@ TCPsocket network_init_server(int port)
 // -----------------------------------------------------
 // クライアント受付
 // -----------------------------------------------------
-TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
+TCPsocket network_accept_client(TCPsocket server_socket, Player players[])
 {
     TCPsocket client = SDLNet_TCP_Accept(server_socket);
     if (!client)
@@ -47,59 +46,67 @@ TCPsocket network_accept_client(TCPsocket server_socket, Client clients[])
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (!clients[i].connected)
+        if (!players[i].connected)
         {
-            clients[i].socket = client;
-            clients[i].connected = true;
+            players[i].socket = client;
+            players[i].connected = true;
+            players[i].player_id = i;
 
-            cout << "[SERVER] Client connected (slot " << i << ")" << endl;
+            LOG_INFO("クライアント接続 (スロット " << i << ")");
 
             return client;
         }
     }
 
-    cout << "[SERVER] Server full, rejecting client." << endl;
+    LOG_WARN("サーバー満員のため接続を拒否");
     SDLNet_TCP_Close(client);
     return nullptr;
 }
 
 // -----------------------------------------------------
-// 必要人数が揃うまで完全にブロッキングして待つ
+// 必要人数が揃うまで待機（無限待機）
 // -----------------------------------------------------
-void wait_for_clients(TCPsocket server_socket, Client clients[])
+void wait_for_clients(TCPsocket server_socket, Player players[])
 {
-    cout << "[SERVER] Waiting for other clients..." << endl;
+    LOG_INFO("クライアント接続を待機中...");
 
     // サーバーソケットを監視セットに追加
     SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
+    if (!socketSet)
+    {
+        LOG_ERROR("ソケットセット作成失敗: " << SDLNet_GetError());
+        return;
+    }
+
     SDLNet_TCP_AddSocket(socketSet, server_socket);
 
     while (true)
     {
         // クライアント接続が来るまで無限に待つ
-        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = �����҂�
+        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = 無限待機
 
         if (numReady > 0)
         {
-            network_accept_client(server_socket, clients);
+            if (SDLNet_SocketReady(server_socket))
+            {
+                network_accept_client(server_socket, players);
+            }
         }
 
         // 現在の接続数をカウント
         int connected_count = 0;
-
         for (int i = 0; i < MAX_CLIENTS; i++)
         {
-            if (clients[i].connected)
+            if (players[i].connected)
                 connected_count++;
         }
 
-        cout << "[SERVER] Connected clients: "
-             << connected_count << " / " << REQUIRED_CLIENTS << endl;
+        LOG_INFO("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
 
         // 必要人数が揃ったらループを抜ける
         if (connected_count >= REQUIRED_CLIENTS)
         {
-            cout << "[SERVER] 全員接続完了！ゲーム開始！" << endl;
+            LOG_SUCCESS("全員接続完了！ゲーム開始！");
             break;
         }
     }
@@ -112,7 +119,12 @@ void wait_for_clients(TCPsocket server_socket, Client clients[])
 // -----------------------------------------------------
 int network_send(TCPsocket client_socket, const void *data, int size)
 {
-    return SDLNet_TCP_Send(client_socket, data, size);
+    int result = SDLNet_TCP_Send(client_socket, data, size);
+    if (result < size)
+    {
+        LOG_ERROR("送信失敗: " << SDLNet_GetError());
+    }
+    return result;
 }
 
 // -----------------------------------------------------
@@ -120,22 +132,26 @@ int network_send(TCPsocket client_socket, const void *data, int size)
 // -----------------------------------------------------
 int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
-    return SDLNet_TCP_Recv(client_socket, buffer, size);
+    int result = SDLNet_TCP_Recv(client_socket, buffer, size);
+    if (result < 0)
+    {
+        LOG_ERROR("受信失敗: " << SDLNet_GetError());
+    }
+    return result;
 }
 
 // -----------------------------------------------------
 // クライアント切断
 // -----------------------------------------------------
-void network_close_client(Client *client)
+void network_close_client(Player *player)
 {
-    if (client->connected)
+    if (player->connected)
     {
-        SDLNet_TCP_Close(client->socket);
+        SDLNet_TCP_Close(player->socket);
+        player->socket = nullptr;
+        player->connected = false;
 
-        client->socket = nullptr;
-        client->connected = false;
-
-        cout << "[SERVER] Client disconnected." << endl;
+        LOG_WARN("クライアント切断 (プレイヤーID: " << player->player_id << ")");
     }
 }
 
@@ -146,13 +162,14 @@ void network_shutdown_server(TCPsocket server_socket)
 {
     SDLNet_TCP_Close(server_socket);
     SDLNet_Quit();
+    LOG_INFO("サーバー終了");
 }
 
 // =====================================================
 // 汎用ブロードキャスト関数の実装
 // =====================================================
 
-void network_broadcast(Client clients[], PacketType type, const void *data, size_t data_size)
+void network_broadcast(Player players[], PacketType type, const void *data, size_t data_size)
 {
     Packet packet;
     memset(&packet, 0, sizeof(Packet));
@@ -164,7 +181,7 @@ void network_broadcast(Client clients[], PacketType type, const void *data, size
     {
         if (data_size > sizeof(packet.data))
         {
-            cout << "[SERVER] Error: Data too large for packet!" << endl;
+            LOG_ERROR("パケットデータが大きすぎます");
             return;
         }
         memcpy(packet.data, data, data_size);
@@ -172,11 +189,11 @@ void network_broadcast(Client clients[], PacketType type, const void *data, size
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (clients[i].connected)
+        if (players[i].connected)
         {
-            if (network_send(clients[i].socket, &packet, sizeof(Packet)) < (int)sizeof(Packet))
+            if (network_send(players[i].socket, &packet, sizeof(Packet)) < (int)sizeof(Packet))
             {
-                cout << "[SERVER] Send error to client " << i << ": " << SDLNet_GetError() << endl;
+                LOG_ERROR("クライアント " << i << " への送信失敗");
             }
         }
     }
