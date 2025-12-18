@@ -11,6 +11,8 @@
 #include "common/player_input.h"
 #include "input_handler/input_handler.h"
 #include "game/game_phase_manager.h"
+#include "physics/court_check.h"
+#include "game/score_logic.h"
 
 Client clients[MAX_CLIENTS] = {0};
 
@@ -104,18 +106,55 @@ int main(int argc, char *argv[])
                         {
                             memcpy(&input, packet.data, sizeof(PlayerInput));
 
-                            apply_player_input(state.players[i], state.ball, input, dt);
+                            apply_player_input(&state, i, input, dt);
                         }
                     }
 
-                    printf("[SERVER] Client %d says: %d\n", i, packet.type);
+                    // printf("[SERVER] Client %d says: %d\n", i, packet.type);
                 }
             }
         }
 
         // --- 物理更新 ---
         update_ball(&state.ball, dt);
-        handle_bounce(&state.ball, 0.0f, 0.7f);
+
+        // バウンド処理
+        if (handle_bounce(&state.ball, 0.0f, 0.7f))
+        {
+            state.ball.bounce_count++;
+            printf("[PHYSICS] Ball bounced! Count=%d\n", state.ball.bounce_count);
+
+            // ラリー中のみ判定を行う
+            if (state.phase == GAME_PHASE_IN_RALLY)
+            {
+                bool is_in = is_in_court(state.ball.point); // コート判定
+                int winner_id = -1;
+
+                // ケース1: 1回目のバウンドでアウトだった場合 -> 打った人のミス
+                if (state.ball.bounce_count == 1 && !is_in)
+                {
+                    // 最後に打ったのが 0 なら 1 の勝ち、1 なら 0 の勝ち
+                    winner_id = (state.ball.last_hit_player_id == 0) ? 1 : 0;
+                    printf("[JUDGE] OUT! Winner: P%d\n", winner_id);
+                }
+                // ケース2: 2回目のバウンド（ツーバウンド） -> 打った人の得点
+                else if (state.ball.bounce_count == 2)
+                {
+                    winner_id = state.ball.last_hit_player_id;
+                    printf("[JUDGE] DOUBLE BOUNCE! Winner: P%d\n", winner_id);
+                }
+
+                // 勝者が決まったらフェーズ移行とスコア加算
+                if (winner_id != -1)
+                {
+                    add_point(&state.score, winner_id);
+                    update_game_phase(&state, GAME_PHASE_POINT_SCORED);
+
+                    // スコア表示
+                    print_score(&state.score);
+                }
+            }
+        }
 
         // --- ボール座標の送信処理---
         network_broadcast(clients, PACKET_TYPE_BALL_STATE, &state.ball.point, sizeof(Point3d));

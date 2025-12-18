@@ -9,7 +9,7 @@ Point3d point3d_normalize(Point3d v);
 // ボールの更新
 void update_ball(Ball *ball, float dt);
 // バウンド処理
-void handle_bounce(Ball *ball, float ground_y, float restitution);
+bool handle_bounce(Ball *ball, float ground_y, float restitution);
 // ラケットでの打撃処理
 void handle_racket_hit(Ball *ball, Point3d direction, float power);
 #endif
