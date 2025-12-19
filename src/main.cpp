@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <csignal>
+#include <unistd.h> // 追加: write() 用
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_net.h>
 
@@ -24,7 +25,9 @@ void signal_handler(int signum)
 {
     if (signum == SIGINT)
     {
-        LOG_INFO("\nCtrl+C検出: サーバーを終了します...");
+        // 非同期シグナル安全な処理のみ行う（LOG_* は使用しない）
+        const char msg[] = "\nCtrl+C検出: サーバーを終了します...\n";
+        write(STDERR_FILENO, msg, sizeof(msg) - 1);
         g_running = 0;
     }
 }
@@ -51,7 +54,65 @@ int main(int argc, char *argv[])
     const float dt = 0.016f; // 60FPS
 
     // 必要人数が集まるまで待つ
-    wait_for_clients(server_socket, players);
+    // ↓ ブロッキングな wait_for_clients をやめ、タイムアウト付きループで待つ（Ctrl+C に即応答）
+    {
+        SDLNet_SocketSet wait_set = SDLNet_AllocSocketSet(1);
+        if (!wait_set)
+        {
+            LOG_ERROR("待機用ソケットセット作成失敗: " << SDLNet_GetError());
+            network_shutdown_server(server_socket);
+            return 1;
+        }
+        SDLNet_TCP_AddSocket(wait_set, server_socket);
+
+        // 既に接続済みの人数をカウント
+        int connected_count = 0;
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            if (players[i].connected)
+                connected_count++;
+        }
+
+        LOG_INFO("クライアント待機開始: 必要人数=" << MAX_CLIENTS);
+
+        while (connected_count < MAX_CLIENTS && g_running)
+        {
+            int ready = SDLNet_CheckSockets(wait_set, 500); // 500ms タイムアウト
+            if (ready < 0)
+            {
+                LOG_ERROR("ソケットチェック失敗 (待機中): " << SDLNet_GetError());
+                break;
+            }
+
+            if (ready > 0 && SDLNet_SocketReady(server_socket))
+            {
+                TCPsocket new_client_socket = network_accept_client(server_socket, players);
+                if (new_client_socket)
+                {
+                    // 新しく接続されたクライアントは network_accept_client 内で players に設定される想定
+                    LOG_INFO("新しいクライアントを受け付けました");
+                }
+            }
+
+            // 接続数を再カウント（network_accept_client が players を更新するため）
+            connected_count = 0;
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if (players[i].connected)
+                    connected_count++;
+            }
+        }
+
+        SDLNet_FreeSocketSet(wait_set);
+    }
+
+    // Ctrl+Cが押された場合は終了
+    if (!g_running)
+    {
+        LOG_INFO("クライアント待機中に中断されました");
+        network_shutdown_server(server_socket);
+        return 0;
+    }
 
     update_game_phase(&state, GAME_PHASE_MATCH_COMPLETE);
 
@@ -81,7 +142,7 @@ int main(int argc, char *argv[])
     // 前回のスコアを記憶する変数（変更検知用）
     GameScore last_sent_score = state.score;
 
-    while (g_running)
+    while (g_running != 0)
     {
         int ready_count = SDLNet_CheckSockets(socket_set, 0);
 

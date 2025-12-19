@@ -63,8 +63,11 @@ TCPsocket network_accept_client(TCPsocket server_socket, Player players[])
     return nullptr;
 }
 
+// グローバル変数の宣言（main.cppで定義されている）
+extern volatile sig_atomic_t g_running;
+
 // -----------------------------------------------------
-// 必要人数が揃うまで待機（無限待機）
+// 必要人数が揃うまで待機（ノンブロッキング）
 // -----------------------------------------------------
 void wait_for_clients(TCPsocket server_socket, Player players[])
 {
@@ -80,34 +83,34 @@ void wait_for_clients(TCPsocket server_socket, Player players[])
 
     SDLNet_TCP_AddSocket(socketSet, server_socket);
 
-    while (true)
+    while (g_running)
     {
-        // クライアント接続が来るまで無限に待つ
-        int numReady = SDLNet_CheckSockets(socketSet, -1); // -1 = 無限待機
+        // 100msタイムアウトでノンブロッキング待機
+        int numReady = SDLNet_CheckSockets(socketSet, 100);
 
         if (numReady > 0)
         {
             if (SDLNet_SocketReady(server_socket))
             {
                 network_accept_client(server_socket, players);
+
+                // 現在の接続数をカウント
+                int connected_count = 0;
+                for (int i = 0; i < MAX_CLIENTS; i++)
+                {
+                    if (players[i].connected)
+                        connected_count++;
+                }
+
+                LOG_INFO("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
+
+                // 必要人数が揃ったらループを抜ける
+                if (connected_count >= REQUIRED_CLIENTS)
+                {
+                    LOG_SUCCESS("全員接続完了！ゲーム開始！");
+                    break;
+                }
             }
-        }
-
-        // 現在の接続数をカウント
-        int connected_count = 0;
-        for (int i = 0; i < MAX_CLIENTS; i++)
-        {
-            if (players[i].connected)
-                connected_count++;
-        }
-
-        LOG_INFO("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
-
-        // 必要人数が揃ったらループを抜ける
-        if (connected_count >= REQUIRED_CLIENTS)
-        {
-            LOG_SUCCESS("全員接続完了！ゲーム開始！");
-            break;
         }
     }
 
