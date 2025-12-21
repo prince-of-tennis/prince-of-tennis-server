@@ -61,8 +61,6 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         // GamePhaseチェック: START_GAME または IN_RALLY の時のみスイング可能
         if (state->phase != GAME_PHASE_START_GAME && state->phase != GAME_PHASE_IN_RALLY)
         {
-            LOG_WARN("スイング失敗: " << swing_result_strings[SWING_RESULT_WRONG_PHASE]
-                     << " (現在フェーズ=" << state->phase << ")");
             return;
         }
 
@@ -75,10 +73,6 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         // スイング範囲内かチェック
         if (dist > PlayerParams::SWING_RADIUS)
         {
-            LOG_WARN("スイング失敗: " << swing_result_strings[SWING_RESULT_TOO_FAR]
-                     << " (距離=" << dist << "m, 必要距離=" << PlayerParams::SWING_RADIUS << "m)"
-                     << " ボール位置=(" << ball.point.x << ", " << ball.point.y << ", " << ball.point.z << ")"
-                     << " プレイヤー位置=(" << player.point.x << ", " << player.point.y << ", " << player.point.z << ")");
             return;
         }
 

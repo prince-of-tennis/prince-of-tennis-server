@@ -2,8 +2,11 @@
 #include "player/player_manager.h"
 #include "physics/ball_physics.h"
 #include "physics/court_check.h"
+#include "common/game_constants.h"
 #include "../log.h"
 #include <cstdio>
+
+using namespace GameConstants;
 
 void init_game(GameState *state)
 {
@@ -12,28 +15,29 @@ void init_game(GameState *state)
     // Blender Y → ゲーム Z（符号反転）
 
     // Player1: Blender(0, -24.9674, 0) → ゲーム(0, 0, 24.9674) = 手前側
-    player_init(state->players[0], "Player1", 0.0f, 0.0f, 24.9674f);
+    player_init(state->players[0], "Player1", 0.0f, GROUND_Y, PLAYER_BASELINE_DISTANCE);
     state->players[0].player_id = 0;
     state->players[0].connected = false;
     LOG_INFO("プレイヤー初期化: " << state->players[0].name
              << " ID=" << state->players[0].player_id
-             << " 位置(0.0, 0.0, " << 24.9674f << ") [手前側]");
+             << " 位置(0.0, " << GROUND_Y << ", " << PLAYER_BASELINE_DISTANCE << ") [手前側]");
 
     // Player2: Blender(0, 24.9674, 0) → ゲーム(0, 0, -24.9674) = 奥側
-    player_init(state->players[1], "Player2", 0.0f, 0.0f, -24.9674f);
+    player_init(state->players[1], "Player2", 0.0f, GROUND_Y, -PLAYER_BASELINE_DISTANCE);
     state->players[1].player_id = 1;
     state->players[1].connected = false;
     LOG_INFO("プレイヤー初期化: " << state->players[1].name
              << " ID=" << state->players[1].player_id
-             << " 位置(0.0, 0.0, " << -24.9674f << ") [奥側]");
+             << " 位置(0.0, " << GROUND_Y << ", " << -PLAYER_BASELINE_DISTANCE << ") [奥側]");
 
     // ボール初期化: Player1の近くに配置（サーブ位置）
-    state->ball.point = (Point3d){0.0f, 1.0f, 24.0f};  // Player1の少し前、地面から1m
+    constexpr float INITIAL_SERVE_POSITION_Z = PLAYER_BASELINE_DISTANCE - BALL_SERVE_OFFSET_FROM_BASELINE;
+    state->ball.point = (Point3d){0.0f, BALL_SERVE_HEIGHT, INITIAL_SERVE_POSITION_Z};
     state->ball.velocity = (Point3d){0.0f, 0.0f, 0.0f};
     state->ball.angle = 0;
     state->ball.last_hit_player_id = 0;  // Player1からサーブ
     state->ball.bounce_count = 0;
     state->ball.hit_count = 0;  // ラリー回数初期化
 
-    LOG_INFO("ボール初期化: 位置(0.0, 1.0, 24.0) [Player1のサーブ位置]");
+    LOG_INFO("ボール初期化: 位置(0.0, " << BALL_SERVE_HEIGHT << ", " << INITIAL_SERVE_POSITION_Z << ") [Player1のサーブ位置]");
 }

@@ -12,4 +12,6 @@ void update_ball(Ball *ball, float dt);
 bool handle_bounce(Ball *ball, float ground_y, float restitution);
 // ラケットでの打撃処理
 void handle_racket_hit(Ball *ball, Point3d direction, float power);
+// ボール初期化（得点後のリセット用）
+void reset_ball(Ball *ball, int server_player_id);
 #endif
