@@ -30,9 +30,14 @@ target_include_directories(server PRIVATE
     ${SDL2_NET_INCLUDE_DIRS} # PkgConfigで見つけたパス
 )
 
+# SDL2_netのリンクディレクトリを追加
+target_link_directories(server PRIVATE
+    ${SDL2_NET_LIBRARY_DIRS}
+)
+
 target_link_libraries(server PRIVATE
 
     # --- システムライブラリ ---
     ${SDL2_LIBRARIES} # SDL2::SDL2 の代わりにこの変数を使う
-    ${SDL2_NET_LIBRARIES} # SDL2_net
+    ${SDL2_NET_LDFLAGS} # SDL2_netのリンクフラグ
 )

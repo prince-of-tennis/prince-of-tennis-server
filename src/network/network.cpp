@@ -135,41 +135,63 @@ int network_send_packet(TCPsocket client_socket, const Packet *packet)
         return -1;
     }
 
-    // Packet構造体全体を送信
-    int total_sent = 0;
-    int packet_size = sizeof(Packet);
-    const uint8_t* data = (const uint8_t*)packet;
-
-    while (total_sent < packet_size)
+    if (SDLNet_TCP_Send(client_socket, packet, sizeof(Packet)) < sizeof(Packet))
     {
-        int sent = SDLNet_TCP_Send(client_socket, data + total_sent, packet_size - total_sent);
-
-        if (sent <= 0)
-        {
-            LOG_ERROR("送信失敗: " << SDLNet_GetError()
-                     << " (" << total_sent << " / " << packet_size << " バイト送信済み)");
-            return sent;
-        }
-
-        total_sent += sent;
-        LOG_DEBUG("送信: " << sent << " バイト (合計: " << total_sent << " / " << packet_size << ")");
+        LOG_ERROR("サーバーへの送信に失敗しました: " << SDLNet_GetError());
+        return 0;
     }
 
-    LOG_DEBUG("パケット送信完了: type=" << packet->type << ", size=" << packet->size
-             << " (" << total_sent << " バイト)");
+    return sizeof(Packet);
 
-    return total_sent;
+
+    // // Packet構造体全体を送信
+    // int total_sent = 0;
+    // int packet_size = sizeof(Packet);
+    // const uint8_t* data = (const uint8_t*)packet;
+    // int max_attempts = 100;  // 最大試行回数（無限ループ防止）
+    // int attempts = 0;
+    //
+    // while (total_sent < packet_size && attempts < max_attempts)
+    // {
+    //     int sent = SDLNet_TCP_Send(client_socket, data + total_sent, packet_size - total_sent);
+    //
+    //     if (sent <= 0)
+    //     {
+    //         LOG_ERROR("送信失敗: " << SDLNet_GetError()
+    //                  << " (" << total_sent << " / " << packet_size << " バイト送信済み, 試行: " << attempts << ")");
+    //         return sent;
+    //     }
+    //
+    //     total_sent += sent;
+    //     attempts++;
+    //
+    //     // // まだデータが必要な場合は少し待機
+    //     // if (total_sent < packet_size)
+    //     // {
+    //     //     SDL_Delay(1);  // 1ms待機
+    //     // }
+    // }
+    //
+    // if (attempts >= max_attempts)
+    // {
+    //     LOG_ERROR("送信タイムアウト: " << total_sent << " / " << packet_size << " バイト送信済み");
+    //     return -1;
+    // }
+    //
+    // return total_sent;
 }
 
 // -----------------------------------------------------
-// データ受信（確実に全データを受信）
+// データ受信（確実に全データを受信、タイムアウト付き）
 // -----------------------------------------------------
 int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
     int total_received = 0;
     uint8_t* buf = (uint8_t*)buffer;
+    int max_attempts = 100;  // 最大試行回数（無限ループ防止）
+    int attempts = 0;
 
-    while (total_received < size)
+    while (total_received < size && attempts < max_attempts)
     {
         int received = SDLNet_TCP_Recv(client_socket, buf + total_received, size - total_received);
 
@@ -177,14 +199,25 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
         {
             if (total_received > 0)
             {
-                LOG_WARN("部分的な受信: " << total_received << " / " << size << " バイト");
+                LOG_WARN("部分的な受信: " << total_received << " / " << size << " バイト (試行回数: " << attempts << ")");
             }
             return received;  // エラーまたは切断
         }
 
         total_received += received;
+        attempts++;
 
-        LOG_DEBUG("受信: " << received << " バイト (合計: " << total_received << " / " << size << ")");
+        // まだデータが必要な場合は少し待機
+        if (total_received < size)
+        {
+            SDL_Delay(1);  // 1ms待機してCPU負荷を軽減
+        }
+    }
+
+    if (attempts >= max_attempts)
+    {
+        LOG_ERROR("受信タイムアウト: " << total_received << " / " << size << " バイト受信済み");
+        return -1;
     }
 
     return total_received;
@@ -226,12 +259,10 @@ int network_receive_packet(TCPsocket client_socket, Packet *packet)
         return -1;
     }
 
-    LOG_DEBUG("パケット受信完了: type=" << packet->type << ", size=" << packet->size);
-
     // パケット内容の検証
-    if (packet->type > 100)  // PacketTypeの最大値を超えている
+    if (packet->type >= PACKET_TYPE_MAX)  // PacketTypeの範囲外
     {
-        LOG_WARN("不正なパケットタイプ: " << packet->type);
+        LOG_WARN("不正なパケットタイプ: " << (int)packet->type << " (最大: " << (PACKET_TYPE_MAX - 1) << ")");
 
         #ifdef DEBUG
         std::cerr << "パケットヘッダーの16進数: ";
@@ -316,8 +347,6 @@ void network_broadcast(Player players[], ClientConnection connections[], const P
         LOG_ERROR("パケットデータが大きすぎます: " << packet->size << " バイト (最大: " << PACKET_MAX_SIZE << ")");
         return;
     }
-
-    LOG_DEBUG("ブロードキャスト: type=" << packet->type << ", size=" << packet->size);
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
