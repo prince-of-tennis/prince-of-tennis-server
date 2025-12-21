@@ -1,5 +1,6 @@
 #include "ball_physics.h"
-#include <math.h>
+#include "../log.h"
+#include <cmath>
 
 // ベクトル計算
 Point3d point3d_add(Point3d a, Point3d b)

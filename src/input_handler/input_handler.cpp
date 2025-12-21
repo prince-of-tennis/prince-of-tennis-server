@@ -2,8 +2,9 @@
 #include "player/player_manager.h"
 #include "physics/ball_physics.h"
 #include "game/game_phase_manager.h"
-#include <math.h>
-#include <stdio.h>
+#include "../log.h"
+#include <cmath>
+#include <cstdio>
 
 #define RACKET_REACH 2.0f // ラケットが届く範囲
 #define SMASH_HEIGHT 2.0f // スマッシュができる高さ（今回は簡易的に使用）
@@ -68,10 +69,10 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
             if (state->phase == GAME_PHASE_START_GAME)
             {
                 update_game_phase(state, GAME_PHASE_IN_RALLY);
-                printf("[GAME] Service Hit! Phase -> IN_RALLY\n");
+                LOG_INFO("サービスヒット！フェーズ -> ラリー中");
             }
 
-            printf("[ACTION] Swing & Hit! Dir Z: %.1f\n", dir.z);
+            LOG_DEBUG("スイング＆ヒット！打球方向 Z: " << dir.z);
         }
     }
 }
