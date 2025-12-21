@@ -3,6 +3,7 @@
 #include "physics/ball_physics.h"
 #include "physics/court_check.h"
 #include "common/game_constants.h"
+#include "game/score_logic.h"
 #include "../log.h"
 #include <cstdio>
 
@@ -40,4 +41,8 @@ void init_game(GameState *state)
     state->ball.hit_count = 0;  // ラリー回数初期化
 
     LOG_INFO("ボール初期化: 位置(0.0, " << BALL_SERVE_HEIGHT << ", " << INITIAL_SERVE_POSITION_Z << ") [Player1のサーブ位置]");
+
+    // スコア初期化
+    init_score(&state->score);
+    LOG_INFO("スコア初期化: 0-0");
 }

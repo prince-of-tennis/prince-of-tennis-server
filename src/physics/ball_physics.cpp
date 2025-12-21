@@ -41,7 +41,8 @@ void update_ball(Ball *ball, float dt)
 bool handle_bounce(Ball *ball, float ground_y, float restitution)
 {
     bool bounced = false;
-    if (ball->point.y <= ground_y)
+    // ボールが地面以下にあり、かつ下向きに移動している場合のみバウンド
+    if (ball->point.y <= ground_y && ball->velocity.y < 0)
     {
         ball->point.y = ground_y;
         ball->velocity.y = -ball->velocity.y * restitution;
