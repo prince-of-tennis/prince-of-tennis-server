@@ -17,12 +17,18 @@ void init_game(GameState *state)
     // Blender Y → ゲーム Z（符号反転）
 
     // Player1: Blender(0, -24.9674, 0) → ゲーム(0, 0, 24.9674) = 手前側
-    player_init(state->players[0], "Player1", 0.0f, 0.0f, PLAYER_BASELINE_DISTANCE);
+    player_init(state->players[0], "Player1", 0.0f, 0.0f, 24.9674f);
+    state->players[0].player_id = 0;
+    state->players[0].connected = false;
     LOG_INFO("プレイヤー初期化: " << state->players[0].name
-             << " 位置(0.0, 0.0, " << PLAYER_BASELINE_DISTANCE << ") [手前側]");
+             << " ID=" << state->players[0].player_id
+             << " 位置(0.0, 0.0, " << 24.9674f << ") [手前側]");
 
     // Player2: Blender(0, 24.9674, 0) → ゲーム(0, 0, -24.9674) = 奥側
-    player_init(state->players[1], "Player2", 0.0f, 0.0f, -PLAYER_BASELINE_DISTANCE);
+    player_init(state->players[1], "Player2", 0.0f, 0.0f, -24.9674f);
+    state->players[1].player_id = 1;
+    state->players[1].connected = false;
     LOG_INFO("プレイヤー初期化: " << state->players[1].name
-             << " 位置(0.0, 0.0, " << -PLAYER_BASELINE_DISTANCE << ") [奥側]");
+             << " ID=" << state->players[1].player_id
+             << " 位置(0.0, 0.0, " << -24.9674f << ") [奥側]");
 }

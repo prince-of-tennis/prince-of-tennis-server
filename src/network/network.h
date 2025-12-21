@@ -10,6 +10,8 @@
 #define REQUIRED_CLIENTS 2
 #define SERVER_PORT 5000
 
+#define DEBUG
+
 // サーバー専用のソケット管理構造体
 struct ClientConnection
 {

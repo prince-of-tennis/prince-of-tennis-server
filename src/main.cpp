@@ -17,6 +17,8 @@
 #include "physics/court_check.h"
 #include "game/score_logic.h"
 
+#define DEBUG
+
 // グローバル変数: Ctrl+C対応
 volatile sig_atomic_t g_running = 1;
 
@@ -45,6 +47,7 @@ int main(int argc, char *argv[])
     LOG_DEBUG("sizeof(Packet) = " << sizeof(Packet) << " バイト");
     LOG_DEBUG("sizeof(Player) = " << sizeof(Player) << " バイト");
     LOG_DEBUG("sizeof(Point3d) = " << sizeof(Point3d) << " バイト");
+    LOG_DEBUG("sizeof(PlayerInput) = " << sizeof(PlayerInput) << " バイト");
     LOG_DEBUG("PACKET_MAX_SIZE = " << PACKET_MAX_SIZE << " バイト");
 
     // サーバー起動
@@ -152,7 +155,7 @@ int main(int argc, char *argv[])
 
     while (g_running != 0)
     {
-        int ready_count = SDLNet_CheckSockets(socket_set, 0);
+        int ready_count = SDLNet_CheckSockets(socket_set, 10);  // 10msタイムアウト
 
         if (ready_count < 0)
         {
@@ -160,6 +163,7 @@ int main(int argc, char *argv[])
             break;
         }
 
+        // ソケットが準備できている場合のみ通信処理
         if (ready_count > 0)
         {
             // 新しいクライアントの接続チェック
@@ -196,7 +200,29 @@ int main(int argc, char *argv[])
                         if (packet.size == sizeof(PlayerInput))
                         {
                             memcpy(&input, packet.data, sizeof(PlayerInput));
+
+                            // デバッグ: 受信した入力を表示
+                            LOG_DEBUG("クライアント " << i << " 入力: right=" << input.right
+                                     << ", left=" << input.left << ", front=" << input.front
+                                     << ", back=" << input.back << ", swing=" << input.swing);
+
                             apply_player_input(&state, i, input, dt);
+
+                            // いずれかの入力がtrueの場合、そのプレイヤーの状態を送信
+                            if (input.right || input.left || input.front || input.back || input.swing)
+                            {
+                                Packet player_packet;
+                                memset(&player_packet, 0, sizeof(Packet));
+                                player_packet.type = PACKET_TYPE_PLAYER_STATE;
+                                player_packet.size = sizeof(Player);
+                                memcpy(player_packet.data, &state.players[i], sizeof(Player));
+
+                                LOG_DEBUG("プレイヤー" << i << "の状態を送信（入力あり）: ID=" << state.players[i].player_id
+                                         << ", 座標=(" << state.players[i].point.x << ", "
+                                         << state.players[i].point.y << ", " << state.players[i].point.z << ")");
+
+                                network_broadcast(players, connections, &player_packet);
+                            }
                         }
                         else
                         {
@@ -208,14 +234,13 @@ int main(int argc, char *argv[])
             }
         }
 
-        // 物理更新
+        // 物理更新（毎フレーム実行）
         update_ball(&state.ball, dt);
 
         // バウンド処理
         if (handle_bounce(&state.ball, 0.0f, 0.7f))
         {
             state.ball.bounce_count++;
-            LOG_DEBUG("ボールバウンド! 回数=" << state.ball.bounce_count);
 
             // ラリー中のみ判定を行う
             if (state.phase == GAME_PHASE_IN_RALLY)
@@ -257,19 +282,7 @@ int main(int argc, char *argv[])
         memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
         network_broadcast(players, connections, &ball_packet);
 
-        // プレイヤー状態の送信
-        for (int i = 0; i < MAX_CLIENTS; i++)
-        {
-            // Player構造体を直接送信
-            // ネットワーク情報（connected）は送信しても問題ないが、
-            // クライアント側では無視される
-            Packet player_packet;
-            memset(&player_packet, 0, sizeof(Packet));
-            player_packet.type = PACKET_TYPE_PLAYER_STATE;
-            player_packet.size = sizeof(Player);
-            memcpy(player_packet.data, &state.players[i], sizeof(Player));
-            network_broadcast(players, connections, &player_packet);
-        }
+        // プレイヤー状態の送信は、PlayerInputを受信した時のみ行う（上記の受信処理内）
 
         // スコア送信
         if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
@@ -320,10 +333,6 @@ int main(int argc, char *argv[])
 
             last_sent_phase = state.phase;
         }
-
-        // デバッグログ
-        LOG_DEBUG("ボール座標: (" << state.ball.point.x << ", "
-                  << state.ball.point.y << ", " << state.ball.point.z << ")");
 
         SDL_Delay(16); // 60fps
     }

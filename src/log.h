@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-// #define DEBUG
+#define DEBUG
 
 #define ANSI_RESET "\033[0m"
 #define ANSI_RED "\033[31m"
@@ -27,7 +27,7 @@
 
 #ifdef DEBUG
 // デバッグログ (DEBUGが定義された時のみ有効)
-#define LOG_DEBUG(message) std::cerr << "[デバッグ] " << message << ANSI_RESET << std::endl
+#define LOG_DEBUG(message) std::cerr << "[-] " << message << ANSI_RESET << std::endl
 #else
 #define LOG_DEBUG(message)
 #endif
