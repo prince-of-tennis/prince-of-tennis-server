@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    update_game_phase(&state, GAME_PHASE_MATCH_COMPLETE);
+    update_game_phase(&state, GAME_PHASE_START_GAME);
 
     // ソケットセット作成
     SDLNet_SocketSet socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
@@ -165,7 +165,20 @@ int main(int argc, char *argv[])
     // 前回のフェーズを記憶する変数（変更検知用）
     GamePhase last_sent_phase = (GamePhase)-1;
     // 前回のスコアを記憶する変数（変更検知用）
-    GameScore last_sent_score = state.score;
+    GameScore last_sent_score;
+    memset(&last_sent_score, 0xFF, sizeof(GameScore)); // 初期値を-1で埋めて、最初の送信を確実に行う
+
+    // 初期スコア（0-0）を送信
+    {
+        LOG_INFO("初期スコアを送信: 0-0");
+        Packet score_packet;
+        memset(&score_packet, 0, sizeof(Packet));
+        score_packet.type = PACKET_TYPE_SCORE_UPDATE;
+        score_packet.size = sizeof(GameScore);
+        memcpy(score_packet.data, &state.score, sizeof(GameScore));
+        network_broadcast(players, connections, &score_packet);
+        last_sent_score = state.score;
+    }
 
     while (g_running != 0)
     {
@@ -238,11 +251,19 @@ int main(int argc, char *argv[])
             }
         }
 
-        // 物理更新（毎フレーム実行）
-        update_ball(&state.ball, dt);
+        // フェーズ管理の更新（タイマーベースのフェーズ遷移）
+        update_phase(&state, dt);
 
-        // バウンド処理
-        if (handle_bounce(&state.ball, GROUND_Y, BOUNCE_RESTITUTION))
+        // 物理更新（サーブ待機中と得点後は更新しない）
+        if (state.phase != GAME_PHASE_START_GAME && state.phase != GAME_PHASE_POINT_SCORED)
+        {
+            update_ball(&state.ball, dt);
+        }
+
+        // バウンド処理（サーブ待機中と得点後はスキップ）
+        if (state.phase != GAME_PHASE_START_GAME
+            && state.phase != GAME_PHASE_POINT_SCORED
+            && handle_bounce(&state.ball, GROUND_Y, BOUNCE_RESTITUTION))
         {
             state.ball.bounce_count++;
 
@@ -269,11 +290,23 @@ int main(int argc, char *argv[])
                 // 勝者が決まったらフェーズ移行とスコア加算
                 if (winner_id != -1)
                 {
-                    add_point(&state.score, winner_id);
-                    update_game_phase(&state, GAME_PHASE_POINT_SCORED);
+                    LOG_INFO("得点加算: Player" << winner_id << " が得点");
 
-                    // スコア表示
+                    // スコア加算
+                    add_point(&state.score, winner_id);
+
+                    // スコア送信
+                    Packet score_packet;
+                    score_packet.type = PACKET_TYPE_SCORE_UPDATE;
+                    score_packet.size = sizeof(GameScore);
+                    memcpy(score_packet.data, &state.score, sizeof(GameScore));
+                    network_broadcast(players, connections, &score_packet);
+
+                    // スコア表示（現在のスコアを確認）
                     print_score(&state.score);
+
+                    // フェーズ移行（POINT_SCOREDへ）
+                    update_game_phase(&state, GAME_PHASE_START_GAME);
 
                     // 得点後にボールを初期化（次のサーブ準備）
                     // サーバーは得点者に基づいて決定（テニスのルール: 得点者の相手がサーブ）
@@ -293,38 +326,26 @@ int main(int argc, char *argv[])
         memcpy(ball_packet.data, &state.ball, sizeof(Ball));
         network_broadcast(players, connections, &ball_packet);
 
-        // スコア送信
-        if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
-        {
-            LOG_DEBUG("スコア変更を検出、ブロードキャスト中...");
-
-            // network.hで定義されたScorePacketを使用（サーバー専用）
-            ScorePacket s_packet;
-            memset(&s_packet, 0, sizeof(ScorePacket));
-            s_packet.current_game_p1 = state.score.current_game_p1;
-            s_packet.current_game_p2 = state.score.current_game_p2;
-
-            // 現在のセットのゲーム取得数
-            int current_set = state.score.current_set;
-            if (current_set >= MAX_SETS)
-                current_set = MAX_SETS - 1;
-
-            s_packet.games_p1 = state.score.games_in_set[current_set][0];
-            s_packet.games_p2 = state.score.games_in_set[current_set][1];
-
-            s_packet.sets_p1 = 0;
-            s_packet.sets_p2 = 0;
-
-            // 全員に送信
-            Packet score_packet;
-            memset(&score_packet, 0, sizeof(Packet));
-            score_packet.type = PACKET_TYPE_SCORE_UPDATE;
-            score_packet.size = sizeof(ScorePacket);
-            memcpy(score_packet.data, &s_packet, sizeof(ScorePacket));
-            network_broadcast(players, connections, &score_packet);
-
-            last_sent_score = state.score;
-        }
+        // スコア送信（GameScore構造体を直接送信）
+        // if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
+        // {
+        //     LOG_DEBUG("スコア変更を検出、ブロードキャスト中...");
+        //     LOG_DEBUG("送信するスコア: ポイント P1=" << state.score.current_game_p1
+        //              << " P2=" << state.score.current_game_p2
+        //              << " | ゲーム: P1=" << state.score.games_in_set[state.score.current_set][0]
+        //              << " P2=" << state.score.games_in_set[state.score.current_set][1]
+        //              << " | セット: " << (state.score.current_set + 1));
+        //
+        //     // GameScore構造体を直接送信
+        //     Packet score_packet;
+        //     memset(&score_packet, 0, sizeof(Packet));
+        //     score_packet.type = PACKET_TYPE_SCORE_UPDATE;
+        //     score_packet.size = sizeof(GameScore);
+        //     memcpy(score_packet.data, &state.score, sizeof(GameScore));
+        //     network_broadcast(players, connections, &score_packet);
+        //
+        //     last_sent_score = state.score;
+        // }
 
         // ゲームフェーズ更新
         update_phase(&state, dt);
