@@ -65,7 +65,7 @@ TCPsocket network_accept_client(TCPsocket server_socket, Player players[], Clien
 }
 
 // グローバル変数の宣言（main.cppで定義されている）
-extern volatile sig_atomic_t g_running;
+extern volatile int g_running;
 
 // -----------------------------------------------------
 // 必要人数が揃うまで待機（ノンブロッキング）
