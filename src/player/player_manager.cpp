@@ -1,7 +1,10 @@
 #include "common/player.h"
+#include "common/game_constants.h"
 #include "player_manager.h"
 #include <cmath>
 #include <cstring>
+
+using namespace GameConstants;
 
 // プレイヤー初期化
 void player_init(Player &player, const std::string &name, float x, float y, float z)
@@ -11,7 +14,7 @@ void player_init(Player &player, const std::string &name, float x, float y, floa
     player.name[sizeof(player.name) - 1] = '\0';
 
     player.point = {x, y, z};
-    player.speed = 5.0f;
+    player.speed = PLAYER_MOVE_SPEED;
 }
 
 // プレイヤー移動処理
@@ -19,7 +22,7 @@ void player_move(Player &player, float dx, float dy, float dz, float deltaTime)
 {
     float len = std::sqrt(dx * dx + dy * dy + dz * dz);
 
-    if (len > 0.0001f)
+    if (len > PLAYER_MOVEMENT_EPSILON)
     {
         dx /= len;
         dy /= len;

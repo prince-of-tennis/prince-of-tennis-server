@@ -1,4 +1,7 @@
 #include "court_check.h"
+#include "common/game_constants.h"
+
+using namespace GameConstants;
 
 bool is_in_court(Point3d p)
 {

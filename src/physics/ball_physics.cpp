@@ -1,6 +1,9 @@
 #include "ball_physics.h"
 #include "../log.h"
+#include "common/game_constants.h"
 #include <cmath>
+
+using namespace GameConstants;
 
 // ベクトル計算
 Point3d point3d_add(Point3d a, Point3d b)
@@ -28,7 +31,7 @@ Point3d point3d_normalize(Point3d v)
 void update_ball(Ball *ball, float dt)
 {
     // 重力 (Y軸マイナス方向へ)
-    ball->velocity.y -= 9.8f * dt;
+    ball->velocity.y -= GRAVITY * dt;
 
     // 位置の更新
     ball->point = point3d_add(ball->point, point3d_mul(ball->velocity, dt));
@@ -53,3 +56,36 @@ void handle_racket_hit(Ball *ball, Point3d direction, float power)
     Point3d dir = point3d_normalize(direction);
     ball->velocity = point3d_mul(dir, power);
 }
+
+// ボール初期化（得点後のリセット用）
+void reset_ball(Ball *ball, int server_player_id)
+{
+    // サーバーのプレイヤーIDに応じて初期位置を設定
+    // Player0 (ID=0): 手前側 (Z > 0)
+    // Player1 (ID=1): 奥側 (Z < 0)
+
+    constexpr float SERVE_POSITION_Z = PLAYER_BASELINE_DISTANCE - BALL_SERVE_OFFSET_FROM_BASELINE;
+
+    if (server_player_id == 0)
+    {
+        // Player0のサーブ位置（手前側）
+        ball->point = (Point3d){0.0f, BALL_SERVE_HEIGHT, SERVE_POSITION_Z};
+        LOG_INFO("ボールリセット: Player0のサーブ位置 (0.0, " << BALL_SERVE_HEIGHT << ", " << SERVE_POSITION_Z << ")");
+    }
+    else
+    {
+        // Player1のサーブ位置（奥側）
+        ball->point = (Point3d){0.0f, BALL_SERVE_HEIGHT, -SERVE_POSITION_Z};
+        LOG_INFO("ボールリセット: Player1のサーブ位置 (0.0, " << BALL_SERVE_HEIGHT << ", " << -SERVE_POSITION_Z << ")");
+    }
+
+    // 速度をリセット
+    ball->velocity = (Point3d){0.0f, 0.0f, 0.0f};
+    ball->angle = 0;
+    ball->last_hit_player_id = server_player_id;
+    ball->bounce_count = 0;
+    ball->hit_count = 0;
+
+    LOG_DEBUG("ボール初期化完了: サーバー=Player" << server_player_id);
+}
+

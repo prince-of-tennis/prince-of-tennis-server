@@ -12,12 +12,16 @@
 #include "common/packet.h"
 #include "common/player.h"
 #include "common/player_input.h"
+#include "common/game_constants.h"
 #include "input_handler/input_handler.h"
 #include "game/game_phase_manager.h"
 #include "physics/court_check.h"
 #include "game/score_logic.h"
+#include "common/player_id.h"
 
 #define DEBUG
+
+using namespace GameConstants;
 
 // グローバル変数: Ctrl+C対応
 volatile sig_atomic_t g_running = 1;
@@ -62,7 +66,7 @@ int main(int argc, char *argv[])
     init_game(&state);
     init_phase_manager(&state);
 
-    const float dt = 0.016f; // 60FPS
+    const float dt = FRAME_TIME; // 60FPS
 
     // 必要人数が集まるまで待つ
     // ↓ ブロッキングな wait_for_clients をやめ、タイムアウト付きループで待つ（Ctrl+C に即応答）
@@ -86,6 +90,7 @@ int main(int argc, char *argv[])
 
         LOG_INFO("クライアント待機開始: 必要人数=" << MAX_CLIENTS);
 
+        int player_id = 0;
         while (connected_count < MAX_CLIENTS && g_running)
         {
             int ready = SDLNet_CheckSockets(wait_set, 500); // 500ms タイムアウト
@@ -102,6 +107,15 @@ int main(int argc, char *argv[])
                 {
                     // 新しく接続されたクライアントは network_accept_client 内で players に設定される想定
                     LOG_INFO("新しいクライアントを受け付けました");
+                    PlayerId id = { player_id };
+                    Packet packet;
+                    packet.type = PACKET_TYPE_SET_PLAYER_ID;
+                    memcpy(packet.data, &id, sizeof(PlayerId));
+                    packet.size = sizeof(PlayerId);
+
+                    network_send_packet(new_client_socket, &packet);
+
+                    player_id++;
                 }
             }
 
@@ -200,12 +214,6 @@ int main(int argc, char *argv[])
                         if (packet.size == sizeof(PlayerInput))
                         {
                             memcpy(&input, packet.data, sizeof(PlayerInput));
-
-                            // デバッグ: 受信した入力を表示
-                            LOG_DEBUG("クライアント " << i << " 入力: right=" << input.right
-                                     << ", left=" << input.left << ", front=" << input.front
-                                     << ", back=" << input.back << ", swing=" << input.swing);
-
                             apply_player_input(&state, i, input, dt);
 
                             // いずれかの入力がtrueの場合、そのプレイヤーの状態を送信
@@ -216,10 +224,6 @@ int main(int argc, char *argv[])
                                 player_packet.type = PACKET_TYPE_PLAYER_STATE;
                                 player_packet.size = sizeof(Player);
                                 memcpy(player_packet.data, &state.players[i], sizeof(Player));
-
-                                LOG_DEBUG("プレイヤー" << i << "の状態を送信（入力あり）: ID=" << state.players[i].player_id
-                                         << ", 座標=(" << state.players[i].point.x << ", "
-                                         << state.players[i].point.y << ", " << state.players[i].point.z << ")");
 
                                 network_broadcast(players, connections, &player_packet);
                             }
@@ -238,7 +242,7 @@ int main(int argc, char *argv[])
         update_ball(&state.ball, dt);
 
         // バウンド処理
-        if (handle_bounce(&state.ball, 0.0f, 0.7f))
+        if (handle_bounce(&state.ball, GROUND_Y, BOUNCE_RESTITUTION))
         {
             state.ball.bounce_count++;
 
@@ -270,19 +274,24 @@ int main(int argc, char *argv[])
 
                     // スコア表示
                     print_score(&state.score);
+
+                    // 得点後にボールを初期化（次のサーブ準備）
+                    // サーバーは得点者に基づいて決定（テニスのルール: 得点者の相手がサーブ）
+                    int next_server = (winner_id == 0) ? 1 : 0;
+                    reset_ball(&state.ball, next_server);
+                    state.server_player_id = next_server;
+                    LOG_INFO("次のサーブ: Player" << next_server);
                 }
             }
         }
 
-        // ボール座標の送信処理
+        // ボール状態の送信処理（位置だけでなく全情報を送信）
         Packet ball_packet;
         memset(&ball_packet, 0, sizeof(Packet));
         ball_packet.type = PACKET_TYPE_BALL_STATE;
-        ball_packet.size = sizeof(Point3d);
-        memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
+        ball_packet.size = sizeof(Ball);
+        memcpy(ball_packet.data, &state.ball, sizeof(Ball));
         network_broadcast(players, connections, &ball_packet);
-
-        // プレイヤー状態の送信は、PlayerInputを受信した時のみ行う（上記の受信処理内）
 
         // スコア送信
         if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
@@ -334,7 +343,7 @@ int main(int argc, char *argv[])
             last_sent_phase = state.phase;
         }
 
-        SDL_Delay(16); // 60fps
+        SDL_Delay(FRAME_DELAY_MS); // 60fps
     }
 
     LOG_INFO("メインループ終了");
