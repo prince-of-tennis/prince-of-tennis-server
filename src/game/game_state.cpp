@@ -7,11 +7,6 @@
 
 void init_game(GameState *state)
 {
-    // ボール初期化（コート中央、少し浮いた位置）
-    state->ball.point = (Point3d){0.0f, 1.0f, 0.0f};
-    state->ball.velocity = (Point3d){0.0f, 0.0f, 0.0f};
-    state->ball.angle = 0;
-
     // 2人プレイヤー専用初期化
     // Blender座標系(Y-up, 回転90度)からゲーム座標系(Z-up)への変換
     // Blender Y → ゲーム Z（符号反転）
@@ -31,4 +26,14 @@ void init_game(GameState *state)
     LOG_INFO("プレイヤー初期化: " << state->players[1].name
              << " ID=" << state->players[1].player_id
              << " 位置(0.0, 0.0, " << -24.9674f << ") [奥側]");
+
+    // ボール初期化: Player1の近くに配置（サーブ位置）
+    state->ball.point = (Point3d){0.0f, 1.0f, 24.0f};  // Player1の少し前、地面から1m
+    state->ball.velocity = (Point3d){0.0f, 0.0f, 0.0f};
+    state->ball.angle = 0;
+    state->ball.last_hit_player_id = 0;  // Player1からサーブ
+    state->ball.bounce_count = 0;
+    state->ball.hit_count = 0;  // ラリー回数初期化
+
+    LOG_INFO("ボール初期化: 位置(0.0, 1.0, 24.0) [Player1のサーブ位置]");
 }

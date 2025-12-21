@@ -16,6 +16,7 @@
 #include "game/game_phase_manager.h"
 #include "physics/court_check.h"
 #include "game/score_logic.h"
+#include "common/player_id.h"
 
 #define DEBUG
 
@@ -86,6 +87,7 @@ int main(int argc, char *argv[])
 
         LOG_INFO("クライアント待機開始: 必要人数=" << MAX_CLIENTS);
 
+        int player_id = 0;
         while (connected_count < MAX_CLIENTS && g_running)
         {
             int ready = SDLNet_CheckSockets(wait_set, 500); // 500ms タイムアウト
@@ -102,6 +104,15 @@ int main(int argc, char *argv[])
                 {
                     // 新しく接続されたクライアントは network_accept_client 内で players に設定される想定
                     LOG_INFO("新しいクライアントを受け付けました");
+                    PlayerId id = { player_id };
+                    Packet packet;
+                    packet.type = PACKET_TYPE_SET_PLAYER_ID;
+                    memcpy(packet.data, &id, sizeof(PlayerId));
+                    packet.size = sizeof(PlayerId);
+
+                    network_send_packet(new_client_socket, &packet);
+
+                    player_id++;
                 }
             }
 
@@ -201,10 +212,16 @@ int main(int argc, char *argv[])
                         {
                             memcpy(&input, packet.data, sizeof(PlayerInput));
 
-                            // デバッグ: 受信した入力を表示
-                            LOG_DEBUG("クライアント " << i << " 入力: right=" << input.right
-                                     << ", left=" << input.left << ", front=" << input.front
-                                     << ", back=" << input.back << ", swing=" << input.swing);
+                            // swing入力があった場合のみログ出力
+                            if (input.swing)
+                            {
+                                LOG_INFO("スイング入力受信: player_id=" << i
+                                        << " プレイヤー位置=(" << state.players[i].point.x << ", "
+                                        << state.players[i].point.y << ", " << state.players[i].point.z << ")"
+                                        << " ボール位置=(" << state.ball.point.x << ", "
+                                        << state.ball.point.y << ", " << state.ball.point.z << ")"
+                                        << " フェーズ=" << state.phase);
+                            }
 
                             apply_player_input(&state, i, input, dt);
 
@@ -274,12 +291,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        // ボール座標の送信処理
+        // ボール状態の送信処理（位置だけでなく全情報を送信）
         Packet ball_packet;
         memset(&ball_packet, 0, sizeof(Packet));
         ball_packet.type = PACKET_TYPE_BALL_STATE;
-        ball_packet.size = sizeof(Point3d);
-        memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
+        ball_packet.size = sizeof(Ball);
+        memcpy(ball_packet.data, &state.ball, sizeof(Ball));
         network_broadcast(players, connections, &ball_packet);
 
         // プレイヤー状態の送信は、PlayerInputを受信した時のみ行う（上記の受信処理内）

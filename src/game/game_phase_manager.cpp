@@ -61,6 +61,8 @@ void update_phase(GameState *state, float dt)
     case GAME_PHASE_POINT_SCORED: // 得点後 -> 試合終了判定 or 次のサーブへ
         if (state->state_timer > TIME_AFTER_POINT)
         {
+            // ラリー回数をリセット
+            state->ball.hit_count = 0;
 
             if (match_finished(&state->score))
             {
