@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="vmware (93b6c857-8db4-4a80-b6fd-972cc003609f)" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="vmware (93b6c857-8db4-4a80-b6fd-972cc003609f)">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/tmp.Vn7IOljikR/prince-of-tennis-server" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/vmware/Project/soft/prince-of-tennis/prince-of-tennis-server" local="$PROJECT_DIR$" />
           </mappings>
           <excludedPaths>
             <excludedPath local="true" path="$PROJECT_DIR$/build/debug" />
@@ -13,5 +13,6 @@
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

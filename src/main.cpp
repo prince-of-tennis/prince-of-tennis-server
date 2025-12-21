@@ -33,11 +33,19 @@ void signal_handler(int signum)
 }
 
 Player players[MAX_CLIENTS] = {0};
+ClientConnection connections[MAX_CLIENTS] = {0};
 
 int main(int argc, char *argv[])
 {
     // シグナルハンドラーを設定
     signal(SIGINT, signal_handler);
+
+    // デバッグ情報: 構造体サイズの確認
+    LOG_DEBUG("=== 構造体サイズ情報 ===");
+    LOG_DEBUG("sizeof(Packet) = " << sizeof(Packet) << " バイト");
+    LOG_DEBUG("sizeof(Player) = " << sizeof(Player) << " バイト");
+    LOG_DEBUG("sizeof(Point3d) = " << sizeof(Point3d) << " バイト");
+    LOG_DEBUG("PACKET_MAX_SIZE = " << PACKET_MAX_SIZE << " バイト");
 
     // サーバー起動
     TCPsocket server_socket = network_init_server(SERVER_PORT);
@@ -86,7 +94,7 @@ int main(int argc, char *argv[])
 
             if (ready > 0 && SDLNet_SocketReady(server_socket))
             {
-                TCPsocket new_client_socket = network_accept_client(server_socket, players);
+                TCPsocket new_client_socket = network_accept_client(server_socket, players, connections);
                 if (new_client_socket)
                 {
                     // 新しく接続されたクライアントは network_accept_client 内で players に設定される想定
@@ -129,9 +137,9 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (players[i].connected)
+        if (players[i].connected && connections[i].socket)
         {
-            SDLNet_TCP_AddSocket(socket_set, players[i].socket);
+            SDLNet_TCP_AddSocket(socket_set, connections[i].socket);
         }
     }
 
@@ -157,7 +165,7 @@ int main(int argc, char *argv[])
             // 新しいクライアントの接続チェック
             if (SDLNet_SocketReady(server_socket))
             {
-                TCPsocket new_client_socket = network_accept_client(server_socket, players);
+                TCPsocket new_client_socket = network_accept_client(server_socket, players, connections);
                 if (new_client_socket)
                 {
                     SDLNet_TCP_AddSocket(socket_set, new_client_socket);
@@ -167,28 +175,21 @@ int main(int argc, char *argv[])
             // 各クライアントからのデータ受信
             for (int i = 0; i < MAX_CLIENTS; i++)
             {
-                if (players[i].connected && SDLNet_SocketReady(players[i].socket))
+                if (players[i].connected && connections[i].socket && SDLNet_SocketReady(connections[i].socket))
                 {
                     Packet packet;
-                    memset(&packet, 0, sizeof(Packet));
-                    int size = network_receive(players[i].socket, &packet, sizeof(Packet));
+                    int size = network_receive_packet(connections[i].socket, &packet);
 
                     if (size <= 0)
                     {
-                        SDLNet_TCP_DelSocket(socket_set, players[i].socket);
-                        network_close_client(&players[i]);
-                        continue;
-                    }
-
-                    // パケットサイズ検証
-                    if (packet.size > PACKET_MAX_SIZE)
-                    {
-                        LOG_WARN("不正なパケットサイズ: " << packet.size);
+                        SDLNet_TCP_DelSocket(socket_set, connections[i].socket);
+                        network_close_client(&players[i], &connections[i]);
                         continue;
                     }
 
                     // パケットの種類をチェック
-                    if (packet.type == PACKET_TYPE_PLAYER_INPUT)
+                    PacketType pkt_type = (PacketType)packet.type;
+                    if (pkt_type == PACKET_TYPE_PLAYER_INPUT)
                     {
                         PlayerInput input;
                         memset(&input, 0, sizeof(PlayerInput));
@@ -196,6 +197,11 @@ int main(int argc, char *argv[])
                         {
                             memcpy(&input, packet.data, sizeof(PlayerInput));
                             apply_player_input(&state, i, input, dt);
+                        }
+                        else
+                        {
+                            LOG_WARN("PlayerInputのサイズが不一致: 受信=" << packet.size
+                                    << ", 期待=" << sizeof(PlayerInput));
                         }
                     }
                 }
@@ -244,22 +250,25 @@ int main(int argc, char *argv[])
         }
 
         // ボール座標の送信処理
-        network_broadcast(players, PACKET_TYPE_BALL_STATE, &state.ball.point, sizeof(Point3d));
+        Packet ball_packet;
+        memset(&ball_packet, 0, sizeof(Packet));
+        ball_packet.type = PACKET_TYPE_BALL_STATE;
+        ball_packet.size = sizeof(Point3d);
+        memcpy(ball_packet.data, &state.ball.point, sizeof(Point3d));
+        network_broadcast(players, connections, &ball_packet);
 
         // プレイヤー状態の送信
         for (int i = 0; i < MAX_CLIENTS; i++)
         {
-            PlayerStatePacket p_packet;
-            memset(&p_packet, 0, sizeof(PlayerStatePacket));
-            p_packet.player_id = i;
-            p_packet.position = state.players[i].point;
-            strncpy(p_packet.name, state.players[i].name, sizeof(p_packet.name) - 1);
-
-            // 全員にブロードキャスト
-            network_broadcast(players,
-                              PACKET_TYPE_PLAYER_STATE,
-                              &p_packet,
-                              sizeof(PlayerStatePacket));
+            // Player構造体を直接送信
+            // ネットワーク情報（connected）は送信しても問題ないが、
+            // クライアント側では無視される
+            Packet player_packet;
+            memset(&player_packet, 0, sizeof(Packet));
+            player_packet.type = PACKET_TYPE_PLAYER_STATE;
+            player_packet.size = sizeof(Player);
+            memcpy(player_packet.data, &state.players[i], sizeof(Player));
+            network_broadcast(players, connections, &player_packet);
         }
 
         // スコア送信
@@ -267,6 +276,7 @@ int main(int argc, char *argv[])
         {
             LOG_DEBUG("スコア変更を検出、ブロードキャスト中...");
 
+            // network.hで定義されたScorePacketを使用（サーバー専用）
             ScorePacket s_packet;
             memset(&s_packet, 0, sizeof(ScorePacket));
             s_packet.current_game_p1 = state.score.current_game_p1;
@@ -284,10 +294,12 @@ int main(int argc, char *argv[])
             s_packet.sets_p2 = 0;
 
             // 全員に送信
-            network_broadcast(players,
-                              PACKET_TYPE_SCORE_UPDATE,
-                              &s_packet,
-                              sizeof(ScorePacket));
+            Packet score_packet;
+            memset(&score_packet, 0, sizeof(Packet));
+            score_packet.type = PACKET_TYPE_SCORE_UPDATE;
+            score_packet.size = sizeof(ScorePacket);
+            memcpy(score_packet.data, &s_packet, sizeof(ScorePacket));
+            network_broadcast(players, connections, &score_packet);
 
             last_sent_score = state.score;
         }
@@ -299,10 +311,12 @@ int main(int argc, char *argv[])
             LOG_INFO("フェーズ変更: " << last_sent_phase << " -> " << state.phase);
 
             // フェーズ変更パケットを全員に送信
-            network_broadcast(players,
-                              PACKET_TYPE_GAME_PHASE,
-                              &state.phase,
-                              sizeof(GamePhase));
+            Packet phase_packet;
+            memset(&phase_packet, 0, sizeof(Packet));
+            phase_packet.type = PACKET_TYPE_GAME_PHASE;
+            phase_packet.size = sizeof(GamePhase);
+            memcpy(phase_packet.data, &state.phase, sizeof(GamePhase));
+            network_broadcast(players, connections, &phase_packet);
 
             last_sent_phase = state.phase;
         }
