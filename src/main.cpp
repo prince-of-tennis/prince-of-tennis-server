@@ -24,7 +24,7 @@
 using namespace GameConstants;
 
 // グローバル変数: Ctrl+C対応
-volatile sig_atomic_t g_running = 1;
+volatile int g_running = 1;
 
 // シグナルハンドラー
 void signal_handler(int signum)
@@ -129,6 +129,21 @@ int main(int argc, char *argv[])
         }
 
         SDLNet_FreeSocketSet(wait_set);
+    }
+
+    // Playerのデータを送信
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (players[i].connected && connections[i].socket)
+        {
+            Packet player_packet;
+            memset(&player_packet, 0, sizeof(Packet));
+            player_packet.type = PACKET_TYPE_PLAYER_STATE;
+            player_packet.size = sizeof(Player);
+            memcpy(player_packet.data, &state.players[i], sizeof(Player));
+
+            network_broadcast(players, connections, &player_packet);
+        }
     }
 
     // Ctrl+Cが押された場合は終了
@@ -325,27 +340,6 @@ int main(int argc, char *argv[])
         ball_packet.size = sizeof(Ball);
         memcpy(ball_packet.data, &state.ball, sizeof(Ball));
         network_broadcast(players, connections, &ball_packet);
-
-        // スコア送信（GameScore構造体を直接送信）
-        // if (memcmp(&state.score, &last_sent_score, sizeof(GameScore)) != 0)
-        // {
-        //     LOG_DEBUG("スコア変更を検出、ブロードキャスト中...");
-        //     LOG_DEBUG("送信するスコア: ポイント P1=" << state.score.current_game_p1
-        //              << " P2=" << state.score.current_game_p2
-        //              << " | ゲーム: P1=" << state.score.games_in_set[state.score.current_set][0]
-        //              << " P2=" << state.score.games_in_set[state.score.current_set][1]
-        //              << " | セット: " << (state.score.current_set + 1));
-        //
-        //     // GameScore構造体を直接送信
-        //     Packet score_packet;
-        //     memset(&score_packet, 0, sizeof(Packet));
-        //     score_packet.type = PACKET_TYPE_SCORE_UPDATE;
-        //     score_packet.size = sizeof(GameScore);
-        //     memcpy(score_packet.data, &state.score, sizeof(GameScore));
-        //     network_broadcast(players, connections, &score_packet);
-        //
-        //     last_sent_score = state.score;
-        // }
 
         // ゲームフェーズ更新
         update_phase(&state, dt);
