@@ -1,9 +1,7 @@
 #include "ball_physics.h"
 #include "../log.h"
 #include "common/game_constants.h"
-#include <cmath>
-
-using namespace GameConstants;
+#include <math.h>
 
 // ベクトル計算
 Point3d point3d_add(Point3d a, Point3d b)
@@ -31,7 +29,7 @@ Point3d point3d_normalize(Point3d v)
 void update_ball(Ball *ball, float dt)
 {
     // 重力 (Y軸マイナス方向へ)
-    ball->velocity.y -= GRAVITY * dt;
+    ball->velocity.y -= GameConstants::GRAVITY * dt;
 
     // 位置の更新
     ball->point = point3d_add(ball->point, point3d_mul(ball->velocity, dt));
@@ -65,19 +63,19 @@ void reset_ball(Ball *ball, int server_player_id)
     // Player0 (ID=0): 手前側 (Z > 0)
     // Player1 (ID=1): 奥側 (Z < 0)
 
-    constexpr float SERVE_POSITION_Z = PLAYER_BASELINE_DISTANCE - BALL_SERVE_OFFSET_FROM_BASELINE;
+    constexpr float SERVE_POSITION_Z = GameConstants::PLAYER_BASELINE_DISTANCE - GameConstants::BALL_SERVE_OFFSET_FROM_BASELINE;
 
     if (server_player_id == 0)
     {
         // Player0のサーブ位置（手前側）
-        ball->point = (Point3d){0.0f, BALL_SERVE_HEIGHT, SERVE_POSITION_Z};
-        LOG_INFO("ボールリセット: Player0のサーブ位置 (0.0, " << BALL_SERVE_HEIGHT << ", " << SERVE_POSITION_Z << ")");
+        ball->point = (Point3d){0.0f, GameConstants::BALL_SERVE_HEIGHT, SERVE_POSITION_Z};
+        LOG_INFO("ボールリセット: Player0のサーブ位置 (0.0, " << GameConstants::BALL_SERVE_HEIGHT << ", " << SERVE_POSITION_Z << ")");
     }
     else
     {
         // Player1のサーブ位置（奥側）
-        ball->point = (Point3d){0.0f, BALL_SERVE_HEIGHT, -SERVE_POSITION_Z};
-        LOG_INFO("ボールリセット: Player1のサーブ位置 (0.0, " << BALL_SERVE_HEIGHT << ", " << -SERVE_POSITION_Z << ")");
+        ball->point = (Point3d){0.0f, GameConstants::BALL_SERVE_HEIGHT, -SERVE_POSITION_Z};
+        LOG_INFO("ボールリセット: Player1のサーブ位置 (0.0, " << GameConstants::BALL_SERVE_HEIGHT << ", " << -SERVE_POSITION_Z << ")");
     }
 
     // 速度をリセット

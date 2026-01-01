@@ -22,12 +22,12 @@
 // 成功ログ
 #define LOG_SUCCESS(message) std::cerr << ANSI_GREEN << "[o] " << message << ANSI_RESET << std::endl
 
-// 情報ログ
+// 情報ログ (重要なイベント用)
 #define LOG_INFO(message) std::cerr << "[-] " << message << ANSI_RESET << std::endl
 
 #ifdef DEBUG
-// デバッグログ (DEBUGが定義された時のみ有効)
-#define LOG_DEBUG(message) std::cerr << "[-] " << message << ANSI_RESET << std::endl
+// デバッグログ (DEBUGが定義された時のみ有効、詳細情報用)
+#define LOG_DEBUG(message) std::cerr << ANSI_BLUE "[d] " << message << ANSI_RESET << std::endl
 #else
 #define LOG_DEBUG(message)
 #endif

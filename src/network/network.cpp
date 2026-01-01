@@ -1,13 +1,20 @@
 #include "network.h"
 #include "../log.h"
+#include "../server_constants.h"
 
 #include <SDL2/SDL_net.h>
-#include <cstring>
+#include <string.h>
+
+#include "common/player_id.h"
+#include "common/ball.h"
+#include "common/GameScore.h"
+#include "common/GamePhase.h"
 
 
 // -----------------------------------------------------
 // サーバー初期化
 // -----------------------------------------------------
+
 TCPsocket network_init_server(int port)
 {
     if (SDLNet_Init() < 0)
@@ -53,7 +60,7 @@ TCPsocket network_accept_client(TCPsocket server_socket, Player players[], Clien
             players[i].connected = true;
             players[i].player_id = i;
 
-            LOG_INFO("クライアント接続 (スロット " << i << ")");
+            LOG_SUCCESS("クライアント接続 (スロット " << i << ")");
 
             return client;
         }
@@ -72,7 +79,7 @@ extern volatile int g_running;
 // -----------------------------------------------------
 void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnection connections[])
 {
-    LOG_INFO("クライアント接続を待機中...");
+    LOG_DEBUG("クライアント接続を待機中...");
 
     // サーバーソケットを監視セットに追加
     SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
@@ -103,7 +110,7 @@ void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnectio
                         connected_count++;
                 }
 
-                LOG_INFO("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
+                LOG_DEBUG("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
 
                 // 必要人数が揃ったらループを抜ける
                 if (connected_count >= REQUIRED_CLIENTS)
@@ -121,17 +128,28 @@ void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnectio
 // -----------------------------------------------------
 // パケット送信（Packet構造体専用）
 // -----------------------------------------------------
-int network_send_packet(TCPsocket client_socket, const Packet *packet)
+// ヘルパー関数：ネットワークパラメータの検証
+static bool validate_network_params(const void *packet, TCPsocket client_socket)
 {
     if (!packet)
     {
         LOG_ERROR("パケットがnullptrです");
-        return -1;
+        return false;
     }
 
     if (!client_socket)
     {
         LOG_ERROR("ソケットがnullptrです");
+        return false;
+    }
+
+    return true;
+}
+
+int network_send_packet(TCPsocket client_socket, const Packet *packet)
+{
+    if (!validate_network_params(packet, client_socket))
+    {
         return -1;
     }
 
@@ -142,43 +160,6 @@ int network_send_packet(TCPsocket client_socket, const Packet *packet)
     }
 
     return sizeof(Packet);
-
-
-    // // Packet構造体全体を送信
-    // int total_sent = 0;
-    // int packet_size = sizeof(Packet);
-    // const uint8_t* data = (const uint8_t*)packet;
-    // int max_attempts = 100;  // 最大試行回数（無限ループ防止）
-    // int attempts = 0;
-    //
-    // while (total_sent < packet_size && attempts < max_attempts)
-    // {
-    //     int sent = SDLNet_TCP_Send(client_socket, data + total_sent, packet_size - total_sent);
-    //
-    //     if (sent <= 0)
-    //     {
-    //         LOG_ERROR("送信失敗: " << SDLNet_GetError()
-    //                  << " (" << total_sent << " / " << packet_size << " バイト送信済み, 試行: " << attempts << ")");
-    //         return sent;
-    //     }
-    //
-    //     total_sent += sent;
-    //     attempts++;
-    //
-    //     // // まだデータが必要な場合は少し待機
-    //     // if (total_sent < packet_size)
-    //     // {
-    //     //     SDL_Delay(1);  // 1ms待機
-    //     // }
-    // }
-    //
-    // if (attempts >= max_attempts)
-    // {
-    //     LOG_ERROR("送信タイムアウト: " << total_sent << " / " << packet_size << " バイト送信済み");
-    //     return -1;
-    // }
-    //
-    // return total_sent;
 }
 
 // -----------------------------------------------------
@@ -188,7 +169,7 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
     int total_received = 0;
     uint8_t* buf = (uint8_t*)buffer;
-    int max_attempts = 100;  // 最大試行回数（無限ループ防止）
+    int max_attempts = NETWORK_RECEIVE_MAX_ATTEMPTS;  // 最大試行回数（無限ループ防止）
     int attempts = 0;
 
     while (total_received < size && attempts < max_attempts)
@@ -228,15 +209,8 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
 // -----------------------------------------------------
 int network_receive_packet(TCPsocket client_socket, Packet *packet)
 {
-    if (!packet)
+    if (!validate_network_params(packet, client_socket))
     {
-        LOG_ERROR("パケットがnullptrです");
-        return -1;
-    }
-
-    if (!client_socket)
-    {
-        LOG_ERROR("ソケットがnullptrです");
         return -1;
     }
 
@@ -359,3 +333,63 @@ void network_broadcast(Player players[], ClientConnection connections[], const P
         }
     }
 }
+
+// =====================================================
+// パケット生成ヘルパー関数
+// =====================================================
+
+// ヘルパー関数：パケットの共通部分を処理
+static Packet create_packet_with_data(PacketType type, const void *data, size_t data_size)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = type;
+    packet.size = data_size;
+    if (data && data_size > 0)
+    {
+        memcpy(packet.data, data, data_size);
+    }
+    return packet;
+}
+
+Packet create_packet_player_id(int player_id)
+{
+    PlayerId id = { player_id };
+    return create_packet_with_data(PACKET_TYPE_SET_PLAYER_ID, &id, sizeof(PlayerId));
+}
+
+Packet create_packet_player_state(const Player *player)
+{
+    return create_packet_with_data(PACKET_TYPE_PLAYER_STATE, player, sizeof(Player));
+}
+
+Packet create_packet_ball_state(const Ball *ball)
+{
+    return create_packet_with_data(PACKET_TYPE_BALL_STATE, ball, sizeof(Ball));
+}
+
+Packet create_packet_score(const GameScore *score)
+{
+    return create_packet_with_data(PACKET_TYPE_SCORE_UPDATE, score, sizeof(GameScore));
+}
+
+Packet create_packet_phase(GamePhase phase)
+{
+    return create_packet_with_data(PACKET_TYPE_GAME_PHASE, &phase, sizeof(GamePhase));
+}
+
+// =====================================================
+// ユーティリティ関数
+// =====================================================
+
+int count_connected_clients(const Player players[])
+{
+    int count = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (players[i].connected)
+            count++;
+    }
+    return count;
+}
+

@@ -5,12 +5,13 @@
 #include "common/packet.h"
 #include "common/player.h"
 #include "common/util/point_3d.h"
+#include "common/ball.h"
+#include "common/GameScore.h"
+#include "common/GamePhase.h"
 
 #define MAX_CLIENTS 2
 #define REQUIRED_CLIENTS 2
 #define SERVER_PORT 5000
-
-#define DEBUG
 
 // サーバー専用のソケット管理構造体
 struct ClientConnection
@@ -19,17 +20,6 @@ struct ClientConnection
     int player_id;  // playersインデックスと対応
 };
 
-// サーバー専用パケット定義
-// スコアパケット（ネットワーク送信用）
-struct ScorePacket
-{
-    int current_game_p1;    // 0, 15, 30, 40
-    int current_game_p2;
-    int games_p1;           // 現在のセットの取得ゲーム数
-    int games_p2;
-    int sets_p1;            // 取得セット数
-    int sets_p2;
-};
 
 // サーバー初期化関連
 TCPsocket network_init_server(int port);
@@ -47,5 +37,15 @@ void network_close_client(Player *player, ClientConnection *connection);
 
 // ブロードキャスト
 void network_broadcast(Player players[], ClientConnection connections[], const Packet *packet);
+
+// パケット生成ヘルパー関数
+Packet create_packet_player_id(int player_id);
+Packet create_packet_player_state(const Player *player);
+Packet create_packet_ball_state(const Ball *ball);
+Packet create_packet_score(const GameScore *score);
+Packet create_packet_phase(GamePhase phase);
+
+// ユーティリティ関数
+int count_connected_clients(const Player players[]);
 
 #endif

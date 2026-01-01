@@ -1,14 +1,10 @@
 #include "game_phase_manager.h"
 #include "score_logic.h"
-#include "physics/court_check.h"
 #include "../log.h"
-#include <cstdio>
-#include <cstdlib>
+#include "common/game_constants.h"
+#include "../server_constants.h"
 
-#define TIME_AFTER_POINT 3.0f    // 得点後から次のサーブまでの時間
-#define TIME_MATCH_COMPLETE 2.0f // マッチング完了（人数が揃った）後、ゲーム開始までの時間
-#define TIME_GAME_FINISHED 5.0f  // ゲーム終了後、サーバーシャットダウンまでの時間
-
+// フェーズ管理の初期化
 void init_phase_manager(GameState *state)
 {
     state->phase = GAME_PHASE_WAIT_FOR_MATCH;
@@ -16,7 +12,8 @@ void init_phase_manager(GameState *state)
     state->server_player_id = 0;
 }
 
-void update_game_phase(GameState *state, GamePhase next_phase)
+// ゲームフェーズを設定
+void set_game_phase(GameState *state, GamePhase next_phase)
 {
     state->phase = next_phase;
     state->state_timer = 0.0f;
@@ -44,43 +41,77 @@ void update_game_phase(GameState *state, GamePhase next_phase)
     }
 }
 
-void update_phase(GameState *state, float dt)
+// 物理更新が有効なフェーズかチェック
+bool is_physics_active_phase(GamePhase phase)
+{
+    return phase != GAME_PHASE_START_GAME &&
+           phase != GAME_PHASE_POINT_SCORED;
+}
+
+// スイング可能なフェーズかチェック
+bool is_swing_allowed_phase(GamePhase phase)
+{
+    return phase == GAME_PHASE_START_GAME ||
+           phase == GAME_PHASE_IN_RALLY;
+}
+
+// マッチング完了フェーズの処理
+static void handle_match_complete_phase(GameState *state)
+{
+    if (state->state_timer > TIME_MATCH_COMPLETE)
+    {
+        set_game_phase(state, GAME_PHASE_START_GAME);
+    }
+}
+
+// ポイント獲得後フェーズの処理
+static void handle_point_scored_phase(GameState *state)
+{
+    if (state->state_timer > TIME_AFTER_POINT)
+    {
+        state->ball.hit_count = 0;
+
+        if (match_finished(&state->score))
+        {
+            set_game_phase(state, GAME_PHASE_GAME_FINISHED);
+        }
+        else
+        {
+            set_game_phase(state, GAME_PHASE_START_GAME);
+        }
+    }
+}
+
+// ゲーム終了フェーズの処理
+static void handle_game_finished_phase(GameState *state, volatile int *running)
+{
+    if (state->state_timer > TIME_GAME_FINISHED)
+    {
+        LOG_INFO("サーバーをシャットダウンします...");
+        if (running)
+        {
+            *running = 0;
+        }
+    }
+}
+
+// フェーズタイマーを更新（自動遷移処理）
+void update_phase_timer(GameState *state, float dt, volatile int *running)
 {
     state->state_timer += dt;
 
     switch (state->phase)
     {
-    case GAME_PHASE_MATCH_COMPLETE: // マッチング完了 -> ゲーム開始（サーブ）へ
-
-        if (state->state_timer > TIME_MATCH_COMPLETE)
-        {
-            update_game_phase(state, GAME_PHASE_START_GAME);
-        }
+    case GAME_PHASE_MATCH_COMPLETE:
+        handle_match_complete_phase(state);
         break;
 
-    case GAME_PHASE_POINT_SCORED: // 得点後 -> 試合終了判定 or 次のサーブへ
-        if (state->state_timer > TIME_AFTER_POINT)
-        {
-            // ラリー回数をリセット
-            state->ball.hit_count = 0;
-
-            if (match_finished(&state->score))
-            {
-                update_game_phase(state, GAME_PHASE_GAME_FINISHED);
-            }
-            else
-            {
-                update_game_phase(state, GAME_PHASE_START_GAME);
-            }
-        }
+    case GAME_PHASE_POINT_SCORED:
+        handle_point_scored_phase(state);
         break;
 
-    case GAME_PHASE_GAME_FINISHED: // 試合終了 -> サーバー終了
-        if (state->state_timer > TIME_GAME_FINISHED)
-        {
-            LOG_INFO("サーバーをシャットダウンします...");
-            exit(0);
-        }
+    case GAME_PHASE_GAME_FINISHED:
+        handle_game_finished_phase(state, running);
         break;
 
     default:
