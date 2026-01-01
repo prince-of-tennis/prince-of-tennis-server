@@ -2,21 +2,12 @@
 #include "player/player_manager.h"
 #include "physics/ball_physics.h"
 #include "game/game_phase_manager.h"
+#include "common/game_constants.h"
 #include "../log.h"
 #include <cmath>
 #include <cstdio>
 
-// ============================================
-// パラメータ定義（マジックナンバー回避）
-// ============================================
-namespace PlayerParams {
-    constexpr float SWING_RADIUS = 5.0f;  // スイング可能範囲（ボールとの距離）
-}
-
-namespace BallParams {
-    constexpr float SHOT_SPEED = 25.0f;   // 打球速度
-    constexpr float SHOT_ANGLE_Y = 0.5f;  // 打球の上方向成分
-}
+using namespace GameConstants;
 
 // デバッグ用enum（enumハック）
 enum SwingResult {
@@ -33,16 +24,24 @@ const char* swing_result_strings[SWING_RESULT_COUNT] = {
     "フェーズが不正"
 };
 
+// プレイヤー入力を適用
 void apply_player_input(GameState *state, int player_id, const PlayerInput &input, float deltaTime)
 {
+    // プレイヤーID検証
+    if (!is_valid_player_id(player_id))
+    {
+        LOG_ERROR("無効なプレイヤーID: " << player_id);
+        return;
+    }
+
     // ショートカットを作成
     Player &player = state->players[player_id];
     Ball &ball = state->ball;
 
     float move_x = 0.0f;
-    float move_z = 0.0f; // Z軸（前後）用の変数
+    float move_z = 0.0f;
 
-    // --- 1. 移動処理 ---
+    // 移動処理
     if (input.right)
         move_x += 1.0f;
     if (input.left)
@@ -52,15 +51,16 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
     if (input.back)
         move_z += 1.0f;
 
-    // プレイヤーの移動を実行 (Y軸=0.0fで地面移動)
+    // プレイヤーの移動を実行（Y軸=0.0fで地面移動）
     player_move(player, move_x, 0.0f, move_z, deltaTime);
 
-    // --- 2. ラケットで球を打つ（改善版） ---
+    // ラケットで球を打つ処理
     if (input.swing)
     {
-        // GamePhaseチェック: START_GAME または IN_RALLY の時のみスイング可能
-        if (state->phase != GAME_PHASE_START_GAME && state->phase != GAME_PHASE_IN_RALLY)
+        // フェーズチェック: スイング可能なフェーズかどうか
+        if (!is_swing_allowed_phase(state->phase))
         {
+            LOG_DEBUG("スイング失敗: フェーズが不正 (phase=" << state->phase << ")");
             return;
         }
 
@@ -71,8 +71,10 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         float dist = sqrtf(dx * dx + dy * dy + dz * dz);
 
         // スイング範囲内かチェック
-        if (dist > PlayerParams::SWING_RADIUS)
+        if (dist > PLAYER_SWING_RADIUS)
         {
+            LOG_DEBUG("スイング失敗: " << swing_result_strings[SWING_RESULT_TOO_FAR]
+                     << " (距離=" << dist << "m, 最大=" << PLAYER_SWING_RADIUS << "m)");
             return;
         }
 
@@ -94,7 +96,7 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         // 打つ方向を決める
         Point3d dir;
         dir.x = 0.0f; // 左右は狙わず、常にセンター（ネット真ん中）へ返す
-        dir.y = BallParams::SHOT_ANGLE_Y;  // パラメータから角度取得
+        dir.y = BALL_SHOT_ANGLE_Y;
 
         // プレイヤーの位置に基づいて打つ方向を決定
         // Player1 (Z > 0, 手前側) → 相手コート (Z < 0, 奥側) へ
@@ -111,7 +113,7 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         }
 
         // ボールを打つ
-        handle_racket_hit(&ball, dir, BallParams::SHOT_SPEED);
+        handle_racket_hit(&ball, dir, BALL_SHOT_SPEED);
 
         // 最後に打ったプレイヤーを記録
         int previous_player_id = ball.last_hit_player_id;
@@ -126,14 +128,14 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput &inpu
         // フェーズ遷移: サーブ(START_GAME)ならラリー(IN_RALLY)へ
         if (state->phase == GAME_PHASE_START_GAME)
         {
-            update_game_phase(state, GAME_PHASE_IN_RALLY);
+            set_game_phase(state, GAME_PHASE_IN_RALLY);
             ball.hit_count = 1;  // サーブが最初のヒット
             LOG_INFO("サービスヒット！フェーズ -> ラリー中");
         }
 
         LOG_DEBUG("スイング結果: " << swing_result_strings[SWING_RESULT_SUCCESS]
                  << " 打球方向=(x:" << dir.x << ", y:" << dir.y << ", z:" << dir.z
-                 << ") 速度=" << BallParams::SHOT_SPEED
+                 << ") 速度=" << BALL_SHOT_SPEED
                  << " player_id=" << player_id
                  << " (前回: player_id=" << previous_player_id
                  << ", ヒット回数=" << ball.hit_count << ")");

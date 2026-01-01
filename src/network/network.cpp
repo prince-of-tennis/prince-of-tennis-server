@@ -4,10 +4,16 @@
 #include <SDL2/SDL_net.h>
 #include <cstring>
 
+#include "common/player_id.h"
+#include "common/ball.h"
+#include "common/GameScore.h"
+#include "common/GamePhase.h"
+
 
 // -----------------------------------------------------
 // サーバー初期化
 // -----------------------------------------------------
+
 TCPsocket network_init_server(int port)
 {
     if (SDLNet_Init() < 0)
@@ -53,7 +59,7 @@ TCPsocket network_accept_client(TCPsocket server_socket, Player players[], Clien
             players[i].connected = true;
             players[i].player_id = i;
 
-            LOG_INFO("クライアント接続 (スロット " << i << ")");
+            LOG_SUCCESS("クライアント接続 (スロット " << i << ")");
 
             return client;
         }
@@ -72,7 +78,7 @@ extern volatile int g_running;
 // -----------------------------------------------------
 void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnection connections[])
 {
-    LOG_INFO("クライアント接続を待機中...");
+    LOG_DEBUG("クライアント接続を待機中...");
 
     // サーバーソケットを監視セットに追加
     SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
@@ -103,7 +109,7 @@ void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnectio
                         connected_count++;
                 }
 
-                LOG_INFO("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
+                LOG_DEBUG("接続済みクライアント: " << connected_count << " / " << REQUIRED_CLIENTS);
 
                 // 必要人数が揃ったらループを抜ける
                 if (connected_count >= REQUIRED_CLIENTS)
@@ -142,43 +148,6 @@ int network_send_packet(TCPsocket client_socket, const Packet *packet)
     }
 
     return sizeof(Packet);
-
-
-    // // Packet構造体全体を送信
-    // int total_sent = 0;
-    // int packet_size = sizeof(Packet);
-    // const uint8_t* data = (const uint8_t*)packet;
-    // int max_attempts = 100;  // 最大試行回数（無限ループ防止）
-    // int attempts = 0;
-    //
-    // while (total_sent < packet_size && attempts < max_attempts)
-    // {
-    //     int sent = SDLNet_TCP_Send(client_socket, data + total_sent, packet_size - total_sent);
-    //
-    //     if (sent <= 0)
-    //     {
-    //         LOG_ERROR("送信失敗: " << SDLNet_GetError()
-    //                  << " (" << total_sent << " / " << packet_size << " バイト送信済み, 試行: " << attempts << ")");
-    //         return sent;
-    //     }
-    //
-    //     total_sent += sent;
-    //     attempts++;
-    //
-    //     // // まだデータが必要な場合は少し待機
-    //     // if (total_sent < packet_size)
-    //     // {
-    //     //     SDL_Delay(1);  // 1ms待機
-    //     // }
-    // }
-    //
-    // if (attempts >= max_attempts)
-    // {
-    //     LOG_ERROR("送信タイムアウト: " << total_sent << " / " << packet_size << " バイト送信済み");
-    //     return -1;
-    // }
-    //
-    // return total_sent;
 }
 
 // -----------------------------------------------------
@@ -359,3 +328,80 @@ void network_broadcast(Player players[], ClientConnection connections[], const P
         }
     }
 }
+
+// =====================================================
+// パケット生成ヘルパー関数
+// =====================================================
+
+Packet create_packet_player_id(int player_id)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = PACKET_TYPE_SET_PLAYER_ID;
+    packet.size = sizeof(PlayerId);
+
+    PlayerId id = { player_id };
+    memcpy(packet.data, &id, sizeof(PlayerId));
+
+    return packet;
+}
+
+Packet create_packet_player_state(const Player *player)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = PACKET_TYPE_PLAYER_STATE;
+    packet.size = sizeof(Player);
+    memcpy(packet.data, player, sizeof(Player));
+
+    return packet;
+}
+
+Packet create_packet_ball_state(const Ball *ball)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = PACKET_TYPE_BALL_STATE;
+    packet.size = sizeof(Ball);
+    memcpy(packet.data, ball, sizeof(Ball));
+
+    return packet;
+}
+
+Packet create_packet_score(const GameScore *score)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = PACKET_TYPE_SCORE_UPDATE;
+    packet.size = sizeof(GameScore);
+    memcpy(packet.data, score, sizeof(GameScore));
+
+    return packet;
+}
+
+Packet create_packet_phase(GamePhase phase)
+{
+    Packet packet;
+    memset(&packet, 0, sizeof(Packet));
+    packet.type = PACKET_TYPE_GAME_PHASE;
+    packet.size = sizeof(GamePhase);
+    memcpy(packet.data, &phase, sizeof(GamePhase));
+
+    return packet;
+}
+
+// =====================================================
+// ユーティリティ関数
+// =====================================================
+
+int count_connected_clients(const Player players[])
+{
+    int count = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (players[i].connected)
+            count++;
+    }
+    return count;
+}
+

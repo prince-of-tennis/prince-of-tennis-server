@@ -3,6 +3,7 @@
 
 using namespace GameConstants;
 
+// コート範囲内かチェック
 bool is_in_court(Point3d p)
 {
     if (p.x < -COURT_HALF_WIDTH || p.x > COURT_HALF_WIDTH)
