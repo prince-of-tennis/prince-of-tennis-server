@@ -1,11 +1,10 @@
 #include "server_init.h"
-#include <cstring>
+#include <string.h>
 #include <unistd.h>
 #include "log.h"
 #include "common/game_constants.h"
 #include "game/game_phase_manager.h"
-
-using namespace GameConstants;
+#include "../server_constants.h"
 
 bool server_initialize(ServerContext *ctx)
 {
@@ -13,8 +12,15 @@ bool server_initialize(ServerContext *ctx)
     memset(ctx, 0, sizeof(ServerContext));
 
     // フェーズ・スコアの初期値設定
-    ctx->last_sent_phase = (GamePhase)-1;
-    memset(&ctx->last_sent_score, 0xFF, sizeof(GameScore));
+    ctx->last_sent_phase = (GamePhase)GAME_SCORE_INVALID;
+    ctx->last_sent_score.current_set = GAME_SCORE_INVALID;
+    ctx->last_sent_score.current_game_p1 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.current_game_p2 = GAME_SCORE_INVALID;
+    for (int i = 0; i < MAX_SETS; i++)
+    {
+        ctx->last_sent_score.games_in_set[i][0] = GAME_SCORE_INVALID;
+        ctx->last_sent_score.games_in_set[i][1] = GAME_SCORE_INVALID;
+    }
 
     // サーバーソケット初期化
     ctx->server_socket = network_init_server(SERVER_PORT);
@@ -59,7 +65,7 @@ bool server_wait_for_clients(ServerContext *ctx)
     int player_id = connected_count;
     while (connected_count < MAX_CLIENTS && *(ctx->running))
     {
-        int ready = SDLNet_CheckSockets(wait_set, 500); // 500ms タイムアウト
+        int ready = SDLNet_CheckSockets(wait_set, SOCKET_TIMEOUT_INIT_WAIT_MS);
         if (ready < 0)
         {
             LOG_ERROR("ソケットチェック失敗 (待機中): " << SDLNet_GetError());

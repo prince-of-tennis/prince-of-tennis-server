@@ -1,4 +1,4 @@
-#include <csignal>
+#include <signal.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
 
     // サーバーコンテキスト初期化
     ServerContext ctx;
-    ctx.running = &g_running;
 
     // サーバー初期化
     if (!server_initialize(&ctx))
@@ -37,6 +36,9 @@ int main(int argc, char *argv[])
         LOG_ERROR("サーバー初期化失敗");
         return 1;
     }
+
+    // runningフラグを設定（server_initialize内のmemsetの後に設定する必要がある）
+    ctx.running = &g_running;
 
     // クライアント接続待機
     if (!server_wait_for_clients(&ctx))

@@ -1,17 +1,15 @@
 #include "court_check.h"
 #include "common/game_constants.h"
 
-using namespace GameConstants;
-
 // コート範囲内かチェック
 bool is_in_court(Point3d p)
 {
-    if (p.x < -COURT_HALF_WIDTH || p.x > COURT_HALF_WIDTH)
+    if (p.x < -GameConstants::COURT_HALF_WIDTH || p.x > GameConstants::COURT_HALF_WIDTH)
     {
         return false;
     }
 
-    if (p.z < -COURT_HALF_LENGTH || p.z > COURT_HALF_LENGTH)
+    if (p.z < -GameConstants::COURT_HALF_LENGTH || p.z > GameConstants::COURT_HALF_LENGTH)
     {
         return false;
     }

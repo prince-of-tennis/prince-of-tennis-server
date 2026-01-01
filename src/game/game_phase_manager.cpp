@@ -2,9 +2,7 @@
 #include "score_logic.h"
 #include "../log.h"
 #include "common/game_constants.h"
-#include <cstdlib>
-
-using namespace GameConstants;
+#include "../server_constants.h"
 
 // フェーズ管理の初期化
 void init_phase_manager(GameState *state)
@@ -57,42 +55,63 @@ bool is_swing_allowed_phase(GamePhase phase)
            phase == GAME_PHASE_IN_RALLY;
 }
 
+// マッチング完了フェーズの処理
+static void handle_match_complete_phase(GameState *state)
+{
+    if (state->state_timer > TIME_MATCH_COMPLETE)
+    {
+        set_game_phase(state, GAME_PHASE_START_GAME);
+    }
+}
+
+// ポイント獲得後フェーズの処理
+static void handle_point_scored_phase(GameState *state)
+{
+    if (state->state_timer > TIME_AFTER_POINT)
+    {
+        state->ball.hit_count = 0;
+
+        if (match_finished(&state->score))
+        {
+            set_game_phase(state, GAME_PHASE_GAME_FINISHED);
+        }
+        else
+        {
+            set_game_phase(state, GAME_PHASE_START_GAME);
+        }
+    }
+}
+
+// ゲーム終了フェーズの処理
+static void handle_game_finished_phase(GameState *state, volatile int *running)
+{
+    if (state->state_timer > TIME_GAME_FINISHED)
+    {
+        LOG_INFO("サーバーをシャットダウンします...");
+        if (running)
+        {
+            *running = 0;
+        }
+    }
+}
+
 // フェーズタイマーを更新（自動遷移処理）
-void update_phase_timer(GameState *state, float dt)
+void update_phase_timer(GameState *state, float dt, volatile int *running)
 {
     state->state_timer += dt;
 
     switch (state->phase)
     {
     case GAME_PHASE_MATCH_COMPLETE:
-        if (state->state_timer > TIME_MATCH_COMPLETE)
-        {
-            set_game_phase(state, GAME_PHASE_START_GAME);
-        }
+        handle_match_complete_phase(state);
         break;
 
     case GAME_PHASE_POINT_SCORED:
-        if (state->state_timer > TIME_AFTER_POINT)
-        {
-            state->ball.hit_count = 0;
-
-            if (match_finished(&state->score))
-            {
-                set_game_phase(state, GAME_PHASE_GAME_FINISHED);
-            }
-            else
-            {
-                set_game_phase(state, GAME_PHASE_START_GAME);
-            }
-        }
+        handle_point_scored_phase(state);
         break;
 
     case GAME_PHASE_GAME_FINISHED:
-        if (state->state_timer > TIME_GAME_FINISHED)
-        {
-            LOG_INFO("サーバーをシャットダウンします...");
-            exit(0);
-        }
+        handle_game_finished_phase(state, running);
         break;
 
     default:

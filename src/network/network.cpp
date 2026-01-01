@@ -1,8 +1,9 @@
 #include "network.h"
 #include "../log.h"
+#include "../server_constants.h"
 
 #include <SDL2/SDL_net.h>
-#include <cstring>
+#include <string.h>
 
 #include "common/player_id.h"
 #include "common/ball.h"
@@ -127,17 +128,28 @@ void wait_for_clients(TCPsocket server_socket, Player players[], ClientConnectio
 // -----------------------------------------------------
 // パケット送信（Packet構造体専用）
 // -----------------------------------------------------
-int network_send_packet(TCPsocket client_socket, const Packet *packet)
+// ヘルパー関数：ネットワークパラメータの検証
+static bool validate_network_params(const void *packet, TCPsocket client_socket)
 {
     if (!packet)
     {
         LOG_ERROR("パケットがnullptrです");
-        return -1;
+        return false;
     }
 
     if (!client_socket)
     {
         LOG_ERROR("ソケットがnullptrです");
+        return false;
+    }
+
+    return true;
+}
+
+int network_send_packet(TCPsocket client_socket, const Packet *packet)
+{
+    if (!validate_network_params(packet, client_socket))
+    {
         return -1;
     }
 
@@ -157,7 +169,7 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
 {
     int total_received = 0;
     uint8_t* buf = (uint8_t*)buffer;
-    int max_attempts = 100;  // 最大試行回数（無限ループ防止）
+    int max_attempts = NETWORK_RECEIVE_MAX_ATTEMPTS;  // 最大試行回数（無限ループ防止）
     int attempts = 0;
 
     while (total_received < size && attempts < max_attempts)
@@ -197,15 +209,8 @@ int network_receive(TCPsocket client_socket, void *buffer, int size)
 // -----------------------------------------------------
 int network_receive_packet(TCPsocket client_socket, Packet *packet)
 {
-    if (!packet)
+    if (!validate_network_params(packet, client_socket))
     {
-        LOG_ERROR("パケットがnullptrです");
-        return -1;
-    }
-
-    if (!client_socket)
-    {
-        LOG_ERROR("ソケットがnullptrです");
         return -1;
     }
 
@@ -333,61 +338,44 @@ void network_broadcast(Player players[], ClientConnection connections[], const P
 // パケット生成ヘルパー関数
 // =====================================================
 
-Packet create_packet_player_id(int player_id)
+// ヘルパー関数：パケットの共通部分を処理
+static Packet create_packet_with_data(PacketType type, const void *data, size_t data_size)
 {
     Packet packet;
     memset(&packet, 0, sizeof(Packet));
-    packet.type = PACKET_TYPE_SET_PLAYER_ID;
-    packet.size = sizeof(PlayerId);
-
-    PlayerId id = { player_id };
-    memcpy(packet.data, &id, sizeof(PlayerId));
-
+    packet.type = type;
+    packet.size = data_size;
+    if (data && data_size > 0)
+    {
+        memcpy(packet.data, data, data_size);
+    }
     return packet;
+}
+
+Packet create_packet_player_id(int player_id)
+{
+    PlayerId id = { player_id };
+    return create_packet_with_data(PACKET_TYPE_SET_PLAYER_ID, &id, sizeof(PlayerId));
 }
 
 Packet create_packet_player_state(const Player *player)
 {
-    Packet packet;
-    memset(&packet, 0, sizeof(Packet));
-    packet.type = PACKET_TYPE_PLAYER_STATE;
-    packet.size = sizeof(Player);
-    memcpy(packet.data, player, sizeof(Player));
-
-    return packet;
+    return create_packet_with_data(PACKET_TYPE_PLAYER_STATE, player, sizeof(Player));
 }
 
 Packet create_packet_ball_state(const Ball *ball)
 {
-    Packet packet;
-    memset(&packet, 0, sizeof(Packet));
-    packet.type = PACKET_TYPE_BALL_STATE;
-    packet.size = sizeof(Ball);
-    memcpy(packet.data, ball, sizeof(Ball));
-
-    return packet;
+    return create_packet_with_data(PACKET_TYPE_BALL_STATE, ball, sizeof(Ball));
 }
 
 Packet create_packet_score(const GameScore *score)
 {
-    Packet packet;
-    memset(&packet, 0, sizeof(Packet));
-    packet.type = PACKET_TYPE_SCORE_UPDATE;
-    packet.size = sizeof(GameScore);
-    memcpy(packet.data, score, sizeof(GameScore));
-
-    return packet;
+    return create_packet_with_data(PACKET_TYPE_SCORE_UPDATE, score, sizeof(GameScore));
 }
 
 Packet create_packet_phase(GamePhase phase)
 {
-    Packet packet;
-    memset(&packet, 0, sizeof(Packet));
-    packet.type = PACKET_TYPE_GAME_PHASE;
-    packet.size = sizeof(GamePhase);
-    memcpy(packet.data, &phase, sizeof(GamePhase));
-
-    return packet;
+    return create_packet_with_data(PACKET_TYPE_GAME_PHASE, &phase, sizeof(GamePhase));
 }
 
 // =====================================================

@@ -10,7 +10,7 @@ void init_phase_manager(GameState *state);
 void set_game_phase(GameState *state, GamePhase new_phase);
 
 // フェーズタイマーを更新（自動遷移処理）
-void update_phase_timer(GameState *state, float dt);
+void update_phase_timer(GameState *state, float dt, volatile int *running);
 
 // 物理更新が有効なフェーズかチェック
 bool is_physics_active_phase(GamePhase phase);

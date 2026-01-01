@@ -10,8 +10,6 @@
 #include "common/game_constants.h"
 #include "server_broadcast.h"
 
-using namespace GameConstants;
-
 // クライアント入力を処理
 void game_handle_client_input(ServerContext *ctx, float dt)
 {
@@ -39,7 +37,7 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 if (packet.size == sizeof(PlayerInput))
                 {
                     memcpy(&input, packet.data, sizeof(PlayerInput));
-                    apply_player_input(&ctx->state, i, input, dt);
+                    apply_player_input(&ctx->state, i, &input, dt);
 
                     // いずれかの入力がtrueの場合、そのプレイヤーの状態を送信
                     if (input.right || input.left || input.front || input.back || input.swing)
@@ -69,7 +67,7 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
 
     // バウンド処理
     if (is_physics_active_phase(ctx->state.phase)
-        && handle_bounce(&ctx->state.ball, GROUND_Y, BOUNCE_RESTITUTION))
+        && handle_bounce(&ctx->state.ball, GameConstants::GROUND_Y, GameConstants::BOUNCE_RESTITUTION))
     {
         ctx->state.ball.bounce_count++;
 
@@ -77,7 +75,7 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
         int winner_id = judge_point(&ctx->state);
 
         // 勝者が決まったらスコア加算と次のサーブ準備
-        if (winner_id != PLAYER_ID_INVALID)
+        if (winner_id != GameConstants::PLAYER_ID_INVALID)
         {
             LOG_INFO("得点加算: Player" << winner_id << " が得点");
 
@@ -95,7 +93,7 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
 
             // 得点後にボールを初期化
             // 次のサーバーは得点者の相手（テニスのルール）
-            int next_server = get_opponent_player_id(winner_id);
+            int next_server = GameConstants::get_opponent_player_id(winner_id);
             reset_ball(&ctx->state.ball, next_server);
             ctx->state.server_player_id = next_server;
             LOG_INFO("次のサーブ: Player" << next_server);

@@ -1,6 +1,56 @@
 #include "score_logic.h"
 #include "../log.h"
-#include <cstdio>
+#include "../server_constants.h"
+#include <stdio.h>
+
+// ゲーム獲得処理のヘルパー関数
+static bool award_game(GameScore *score, int winner)
+{
+    score->games_in_set[score->current_set][winner]++;
+    score->current_game_p1 = 0;
+    score->current_game_p2 = 0;
+
+    printf("[SCORE] Player %d wins the GAME!\n", winner + 1);
+
+    // --- セット終了判定 (簡易版: 6ゲーム先取) ---
+    if (score->games_in_set[score->current_set][winner] >= 6)
+    {
+        LOG_SUCCESS("プレイヤー " << (winner + 1) << " がセット " << (score->current_set + 1) << " を獲得！");
+
+        // 次のセットへ
+        score->current_set++;
+        if (match_finished(score))
+        {
+            LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// 40点状態での得点処理（デュース、アドバンテージ）
+static bool handle_forty_point(int *win_pt, int *lose_pt, GameScore *score, int winner)
+{
+    if (*lose_pt < TENNIS_SCORE_FORTY)
+    {
+        // ゲーム獲得 (相手が40未満なら勝ち)
+        return award_game(score, winner);
+    }
+    else if (*lose_pt == TENNIS_SCORE_FORTY)
+    {
+        // デュースからアドバンテージへ
+        *win_pt = TENNIS_SCORE_ADVANTAGE;
+    }
+    else if (*lose_pt == TENNIS_SCORE_ADVANTAGE)
+    {
+        // 相手のアドバンテージを相殺、デュースに戻る
+        *lose_pt = TENNIS_SCORE_FORTY;
+        *win_pt = TENNIS_SCORE_FORTY;
+    }
+
+    return true;
+}
 
 void init_score(GameScore *score)
 {
@@ -21,66 +71,27 @@ bool add_point(GameScore *score, int winner)
     int *win_pt = (winner == 0) ? &score->current_game_p1 : &score->current_game_p2;
     int *lose_pt = (winner == 0) ? &score->current_game_p2 : &score->current_game_p1;
 
-    // ポイント加算ロジック
-    if (*win_pt == 0)
+    // ポイント加算ロジック（テニスのスコア遷移）
+    if (*win_pt == TENNIS_SCORE_LOVE)
     {
-        *win_pt = 15;
+        *win_pt = TENNIS_SCORE_FIFTEEN;
     }
-    else if (*win_pt == 15)
+    else if (*win_pt == TENNIS_SCORE_FIFTEEN)
     {
-        *win_pt = 30;
+        *win_pt = TENNIS_SCORE_THIRTY;
     }
-    else if (*win_pt == 30)
+    else if (*win_pt == TENNIS_SCORE_THIRTY)
     {
-        *win_pt = 40;
+        *win_pt = TENNIS_SCORE_FORTY;
     }
-    else if (*win_pt == 40)
+    else if (*win_pt == TENNIS_SCORE_FORTY)
     {
-        if (*lose_pt < 40)
-        {
-            // ゲーム獲得 (相手が40未満なら勝ち)
-            goto WIN_GAME;
-        }
-        else if (*lose_pt == 40)
-        {
-            // デュースからアドバンテージへ
-            *win_pt = 50; // アドバンテージを50で表現
-        }
-        else if (*lose_pt == 50)
-        {
-            // 相手のアドバンテージを相殺、デュースに戻る
-            *lose_pt = 40;
-            *win_pt = 40;
-        }
+        return handle_forty_point(win_pt, lose_pt, score, winner);
     }
-
-    else if (*win_pt == 50)
+    else if (*win_pt == TENNIS_SCORE_ADVANTAGE)
     {
         // アドバンテージ状態でポイント取ったのでゲーム獲得
-        goto WIN_GAME;
-    }
-    return true;
-
-WIN_GAME:
-    // ゲーム獲得処理
-    score->games_in_set[score->current_set][winner]++;
-    score->current_game_p1 = 0;
-    score->current_game_p2 = 0;
-
-    printf("[SCORE] Player %d wins the GAME!\n", winner + 1);
-
-    // --- セット終了判定 (簡易版: 6ゲーム先取) ---
-    if (score->games_in_set[score->current_set][winner] >= 6)
-    {
-        LOG_SUCCESS("プレイヤー " << (winner + 1) << " がセット " << (score->current_set + 1) << " を獲得！");
-
-        // 次のセットへ
-        score->current_set++;
-        if (match_finished(score))
-        {
-            LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
-            return false;
-        }
+        return award_game(score, winner);
     }
 
     return true;

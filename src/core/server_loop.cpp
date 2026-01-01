@@ -1,17 +1,16 @@
 #include "server_loop.h"
 #include <SDL2/SDL.h>
-#include <cstring>
+#include <string.h>
 #include "log.h"
 #include "game/game_phase_manager.h"
 #include "common/game_constants.h"
 #include "server_broadcast.h"
 #include "game_update.h"
-
-using namespace GameConstants;
+#include "../server_constants.h"
 
 void server_run_main_loop(ServerContext *ctx)
 {
-    const float dt = FRAME_TIME; // 60FPS
+    const float dt = GameConstants::FRAME_TIME; // 60FPS
 
     // 初期プレイヤー状態を送信
     broadcast_initial_player_states(ctx);
@@ -27,7 +26,7 @@ void server_run_main_loop(ServerContext *ctx)
 
     while (*(ctx->running) != 0)
     {
-        int ready_count = SDLNet_CheckSockets(ctx->socket_set, 10);  // 10msタイムアウト
+        int ready_count = SDLNet_CheckSockets(ctx->socket_set, SOCKET_TIMEOUT_MAIN_LOOP_MS);
 
         if (ready_count < 0)
         {
@@ -53,7 +52,7 @@ void server_run_main_loop(ServerContext *ctx)
         }
 
         // フェーズ管理の更新（タイマーベースのフェーズ遷移）
-        update_phase_timer(&ctx->state, dt);
+        update_phase_timer(&ctx->state, dt, ctx->running);
 
         // 物理更新とスコアリング
         game_update_physics_and_scoring(ctx, dt);
@@ -64,7 +63,7 @@ void server_run_main_loop(ServerContext *ctx)
         // ゲームフェーズ更新の送信
         broadcast_phase_update(ctx);
 
-        SDL_Delay(FRAME_DELAY_MS); // 60fps
+        SDL_Delay(GameConstants::FRAME_DELAY_MS); // 60fps
     }
 
     LOG_INFO("メインループ終了");
