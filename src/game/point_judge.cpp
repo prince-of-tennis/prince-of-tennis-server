@@ -32,6 +32,21 @@ int judge_point(GameState *state)
     bool is_in = is_in_court(ball->point); // コート判定
     int winner_id = GameConstants::PLAYER_ID_INVALID;
 
+    // ネット判定: Z=0を跨いだかチェック（previous_z と point.z の符号が異なる）
+    bool crossed_net = (ball->previous_z * ball->point.z < 0.0f) ||
+                       (ball->previous_z == GameConstants::NET_POSITION_Z) ||
+                       (ball->point.z == GameConstants::NET_POSITION_Z);
+
+    if (crossed_net && ball->point.y <= GameConstants::NET_HEIGHT)
+    {
+        // ネットに引っかかった → 打った人のミス
+        winner_id = GameConstants::get_opponent_player_id(ball->last_hit_player_id);
+        LOG_INFO("判定: " << point_judge_result_strings[POINT_JUDGE_NET]
+                 << "! Y=" << ball->point.y << "m (NET_HEIGHT=" << GameConstants::NET_HEIGHT
+                 << "m) 勝者: P" << winner_id);
+        return winner_id;
+    }
+
     // ケース1: 1回目のバウンドでアウトだった場合 -> 打った人のミス
     if (ball->bounce_count == 1 && !is_in)
     {

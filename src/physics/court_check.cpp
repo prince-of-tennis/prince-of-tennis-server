@@ -14,5 +14,11 @@ bool is_in_court(Point3d p)
         return false;
     }
 
+    // 高さチェック（コートの最大高さを超えたらアウト）
+    if (p.y > GameConstants::COURT_MAX_HEIGHT)
+    {
+        return false;
+    }
+
     return true;
 }

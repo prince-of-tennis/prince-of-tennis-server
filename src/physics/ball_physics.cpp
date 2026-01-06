@@ -28,6 +28,9 @@ Point3d point3d_normalize(Point3d v)
 // ボールの更新
 void update_ball(Ball *ball, float dt)
 {
+    // 前フレームのZ座標を保存（ネット判定用）
+    ball->previous_z = ball->point.z;
+
     // 重力 (Y軸マイナス方向へ)
     ball->velocity.y -= GameConstants::GRAVITY * dt;
 
@@ -84,6 +87,7 @@ void reset_ball(Ball *ball, int server_player_id)
     ball->last_hit_player_id = server_player_id;
     ball->bounce_count = 0;
     ball->hit_count = 0;
+    ball->previous_z = ball->point.z;  // 初期位置のZ座標を保存
 
     LOG_DEBUG("ボール初期化完了: サーバー=Player" << server_player_id);
 }
