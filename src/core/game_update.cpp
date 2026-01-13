@@ -7,6 +7,7 @@
 #include "game/game_phase_manager.h"
 #include "game/point_judge.h"
 #include "common/player_input.h"
+#include "common/player_swing.h"
 #include "common/game_constants.h"
 #include "server_broadcast.h"
 
@@ -39,8 +40,9 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                     memcpy(&input, packet.data, sizeof(PlayerInput));
                     apply_player_input(&ctx->state, i, &input, dt);
 
-                    // いずれかの入力がtrueの場合、そのプレイヤーの状態を送信
-                    if (input.right || input.left || input.front || input.back || input.swing)
+                    // いずれかの入力がある場合、そのプレイヤーの状態を送信
+                    bool has_input = input.right || input.left || input.front || input.back;
+                    if (has_input)
                     {
                         Packet player_packet = create_packet_player_state(&ctx->state.players[i]);
                         network_broadcast(ctx->players, ctx->connections, &player_packet);
@@ -50,6 +52,21 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 {
                     LOG_WARN("PlayerInputのサイズが不一致: 受信=" << packet.size
                             << ", 期待=" << sizeof(PlayerInput));
+                }
+            }
+            else if (pkt_type == PACKET_TYPE_PLAYER_SWING)
+            {
+                PlayerSwing swing;
+                memset(&swing, 0, sizeof(PlayerSwing));
+                if (packet.size == sizeof(PlayerSwing))
+                {
+                    memcpy(&swing, packet.data, sizeof(PlayerSwing));
+                    apply_player_swing(&ctx->state, i, &swing);
+                }
+                else
+                {
+                    LOG_WARN("PlayerSwingのサイズが不一致: 受信=" << packet.size
+                            << ", 期待=" << sizeof(PlayerSwing));
                 }
             }
         }
