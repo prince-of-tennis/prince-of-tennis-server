@@ -44,12 +44,15 @@ constexpr float SWING_ACC_MAX_Z = 15.0f;          // Z軸（前後）の加速�
 // 打球方向の角度範囲（正規化前の成分値）
 constexpr float SWING_ANGLE_X_MIN = -0.3f;        // X軸（左右）の最小値（左）
 constexpr float SWING_ANGLE_X_MAX = 0.3f;         // X軸（左右）の最大値（右）
-constexpr float SWING_ANGLE_Y_MIN = 0.2f;         // Y軸（高さ）の最小値（低い弾道）
-constexpr float SWING_ANGLE_Y_MAX = 0.5f;         // Y軸（高さ）の最大値（高い弾道）
-constexpr float SWING_ANGLE_Z_BASE = 0.95f;       // Z軸（前方）の基本値（固定）
+constexpr float SWING_ANGLE_Y_MIN = 0.25f;        // Y軸（高さ）の最小値（低い弾道）
+constexpr float SWING_ANGLE_Y_MAX = 1.0f;         // Y軸（高さ）の最大値（高い弾道）
+constexpr float SWING_ANGLE_Z_BASE = 0.55f;       // Z軸（前方）の基本値（固定）
 
 // 速度パラメータ
-constexpr float SWING_SPEED_MULTIPLIER = 1.5f;    // 加速度から速度への変換係数
-constexpr float SWING_SPEED_MIN = 15.0f;          // 打球の最低速度（m/s）
-constexpr float SWING_SPEED_MAX = 35.0f;          // 打球の最高速度（m/s）
-constexpr float BALL_SHOT_SPEED_BASE = 20.0f;     // 基本打球速度（m/s）
+constexpr float SWING_SPEED_MULTIPLIER = 1.0f;    // 加速度から速度への変換係数
+constexpr float SWING_SPEED_MIN = 12.0f;          // 打球の最低速度（m/s）
+constexpr float SWING_SPEED_MAX = 25.0f;          // 打球の最高速度（m/s）
+constexpr float BALL_SHOT_SPEED_BASE = 12.0f;     // 基本打球速度（m/s）
+
+// Z軸速度抑制パラメータ
+constexpr float Z_VELOCITY_DAMPING = 2.2f;        // Z軸方向の速度減衰係数
