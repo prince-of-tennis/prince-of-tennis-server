@@ -171,6 +171,18 @@ void apply_player_input(GameState *state, int player_id, const PlayerInput *inpu
         move_z += 1.0f;
 
     player_move(player, move_x, 0.0f, move_z, deltaTime);
+
+    // ネット越え防止: プレイヤーが自陣から出ないように制約
+    if (player_id == 0 && player->point.z < GameConstants::NET_POSITION_Z)
+    {
+        // player_id == 0は正の領域（Z >= 0）に制限
+        player->point.z = GameConstants::NET_POSITION_Z;
+    }
+    else if (player_id == 1 && player->point.z > GameConstants::NET_POSITION_Z)
+    {
+        // player_id == 1は負の領域（Z <= 0）に制限
+        player->point.z = GameConstants::NET_POSITION_Z;
+    }
 }
 
 // プレイヤースイングを適用

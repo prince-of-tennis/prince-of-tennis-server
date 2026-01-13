@@ -42,8 +42,8 @@ constexpr float SWING_ACC_MAX_Y = 15.0f;          // Y軸（上下）の加速�
 constexpr float SWING_ACC_MAX_Z = 15.0f;          // Z軸（前後）の加速度最大値
 
 // 打球方向の角度範囲（正規化前の成分値）
-constexpr float SWING_ANGLE_X_MIN = -0.05f;       // X軸（左右）の最小値（左）
-constexpr float SWING_ANGLE_X_MAX = 0.05f;        // X軸（左右）の最大値（右）
+constexpr float SWING_ANGLE_X_MIN = -0.3f;        // X軸（左右）の最小値（左）
+constexpr float SWING_ANGLE_X_MAX = 0.3f;         // X軸（左右）の最大値（右）
 constexpr float SWING_ANGLE_Y_MIN = 0.2f;         // Y軸（高さ）の最小値（低い弾道）
 constexpr float SWING_ANGLE_Y_MAX = 0.5f;         // Y軸（高さ）の最大値（高い弾道）
 constexpr float SWING_ANGLE_Z_BASE = 0.95f;       // Z軸（前方）の基本値（固定）
