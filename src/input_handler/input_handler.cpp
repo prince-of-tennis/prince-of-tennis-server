@@ -58,11 +58,6 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
     // 加速度の大きさから打球速度を計算
     float acc_magnitude = sqrtf(acc_x * acc_x + acc_y * acc_y + acc_z * acc_z);
 
-    // デバッグ：受信した加速度値をログ出力
-    LOG_INFO("【サーバー】player_id=" << player_id
-             << " 受信加速度: x=" << acc_x << " y=" << acc_y << " z=" << acc_z
-             << " magnitude=" << acc_magnitude);
-
     // 各軸の加速度を-1.0～1.0の割合に正規化
     float ratio_x = acc_x / SWING_ACC_MAX_X;
     float ratio_y = acc_y / SWING_ACC_MAX_Y;
@@ -109,15 +104,11 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
     if (speed < SWING_SPEED_MIN) speed = SWING_SPEED_MIN;  // 最低速度
     if (speed > SWING_SPEED_MAX) speed = SWING_SPEED_MAX;  // 最高速度
 
-    // デバッグ：最終的な打球方向をログ出力
-    LOG_INFO("  最終方向: x=" << dir.x << " y=" << dir.y << " z=" << dir.z
-             << " 速度=" << speed << " m/s");
-    LOG_INFO("  意味: " << (dir.x < -0.01f ? "左" : dir.x > 0.01f ? "右" : "中央")
-             << "/" << (dir.y < 0.3f ? "低" : dir.y > 0.4f ? "高" : "中")
-             << "/" << (dir.z * opponent_direction > 0 ? "前方" : "後方"));
-
     // ボールを打つ
     handle_racket_hit(ball, dir, speed);
+
+    // Z軸方向の速度を抑制（飛びすぎ防止）
+    ball->velocity.z *= Z_VELOCITY_DAMPING;
 
     // 最後に打ったプレイヤーを記録
     int previous_player_id = ball->last_hit_player_id;
@@ -136,13 +127,6 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
         ball->hit_count = 1;  // サーブが最初のヒット
         LOG_INFO("サービスヒット！フェーズ -> ラリー中");
     }
-
-    LOG_DEBUG("スイング成功"
-             << " 打球方向=(x:" << dir.x << ", y:" << dir.y << ", z:" << dir.z
-             << ") 速度=" << speed
-             << " player_id=" << player_id
-             << " (前回: player_id=" << previous_player_id
-             << ", ヒット回数=" << ball->hit_count << ")");
 }
 
 // プレイヤー入力を適用

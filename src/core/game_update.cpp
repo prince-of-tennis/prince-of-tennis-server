@@ -82,6 +82,45 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
         update_ball(&ctx->state.ball, dt);
     }
 
+    // ネット判定（毎フレームチェック）
+    if (ctx->state.phase == GAME_PHASE_IN_RALLY)
+    {
+        Ball *ball = &ctx->state.ball;
+
+        // ネット判定: Z=0を跨いだかチェック
+        bool crossed_net = (ball->previous_z * ball->point.z < 0.0f) ||
+                           (ball->previous_z == GameConstants::NET_POSITION_Z) ||
+                           (ball->point.z == GameConstants::NET_POSITION_Z);
+
+        if (crossed_net && ball->point.y <= GameConstants::NET_HEIGHT)
+        {
+            // ネットに引っかかった → 打った人のミス
+            int winner_id = GameConstants::get_opponent_player_id(ball->last_hit_player_id);
+            LOG_INFO("判定: ネット! Y=" << ball->point.y << "m (NET_HEIGHT="
+                     << GameConstants::NET_HEIGHT << "m) 勝者: P" << winner_id);
+
+            // スコア加算
+            add_point(&ctx->state.score, winner_id);
+
+            // スコア送信
+            broadcast_score_update(ctx);
+
+            // スコア表示
+            print_score(&ctx->state.score);
+
+            // フェーズ移行（次のサーブ準備へ）
+            set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+
+            // 得点後にボールを初期化
+            int next_server = GameConstants::get_opponent_player_id(winner_id);
+            reset_ball(&ctx->state.ball, next_server);
+            ctx->state.server_player_id = next_server;
+            LOG_INFO("次のサーブ: Player" << next_server);
+
+            return;  // ネット判定で処理完了したので、バウンド判定はスキップ
+        }
+    }
+
     // バウンド処理
     if (is_physics_active_phase(ctx->state.phase)
         && handle_bounce(&ctx->state.ball, GameConstants::GROUND_Y, GameConstants::BOUNCE_RESTITUTION))
