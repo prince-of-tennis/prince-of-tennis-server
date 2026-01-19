@@ -6,6 +6,8 @@
 #include "game/score_logic.h"
 #include "game/game_phase_manager.h"
 #include "game/point_judge.h"
+#include "common/ability.h"
+#include "common/ability_config.h"
 #include "common/player_input.h"
 #include "common/player_swing.h"
 #include "common/game_constants.h"
@@ -67,6 +69,34 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 {
                     LOG_WARN("PlayerSwingのサイズが不一致: 受信=" << packet.size
                             << ", 期待=" << sizeof(PlayerSwing));
+                }
+            }
+            else if (pkt_type == PACKET_TYPE_ABILITY_REQUEST)
+            {
+                AbilityActivateRequest request;
+                memset(&request, 0, sizeof(AbilityActivateRequest));
+                if (packet.size == sizeof(AbilityActivateRequest))
+                {
+                    memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
+
+                    // 能力設定を取得
+                    const AbilityConfig* config = ability_get_config(request.ability_type);
+                    if (config != nullptr && config->requires_server)
+                    {
+                        // 能力を発動
+                        AbilityState* state = &ctx->state.ability_states[i];
+                        state->player_id = i;
+                        state->active_ability = request.ability_type;
+                        state->remaining_frames = config->duration_frames;
+                        state->cooldown_frames = config->cooldown_frames;
+
+                        LOG_INFO("能力発動: player=" << i
+                                << " ability=" << static_cast<int>(request.ability_type)
+                                << " duration=" << config->duration_frames);
+
+                        // 能力状態をブロードキャスト
+                        broadcast_ability_state(ctx, i);
+                    }
                 }
             }
         }

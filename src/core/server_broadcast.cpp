@@ -1,5 +1,6 @@
 #include "server_broadcast.h"
 #include <cstring>
+#include "common/ability.h"
 #include "log.h"
 
 void broadcast_ball_state(ServerContext *ctx)
@@ -49,3 +50,13 @@ void broadcast_initial_player_states(ServerContext *ctx)
     LOG_DEBUG("初期プレイヤー状態を送信");
 }
 
+void broadcast_ability_state(ServerContext *ctx, int player_id)
+{
+    if (player_id < 0 || player_id >= MAX_CLIENTS)
+    {
+        return;
+    }
+
+    Packet ability_packet = create_packet_ability_state(&ctx->state.ability_states[player_id]);
+    network_broadcast(ctx->players, ctx->connections, &ability_packet);
+}

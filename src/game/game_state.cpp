@@ -6,6 +6,7 @@
 #include "game/score_logic.h"
 #include "../log.h"
 #include <stdio.h>
+#include <cstring>
 
 void init_game(GameState *state)
 {
@@ -43,4 +44,8 @@ void init_game(GameState *state)
     // スコア初期化
     init_score(&state->score);
     LOG_INFO("スコア初期化: 0-0");
+
+    // 能力状態初期化
+    std::memset(state->ability_states, 0, sizeof(state->ability_states));
+    LOG_INFO("能力状態初期化完了");
 }

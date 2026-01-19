@@ -14,3 +14,5 @@ void broadcast_score_update(ServerContext *ctx);
 // 初期プレイヤー状態をブロードキャスト
 void broadcast_initial_player_states(ServerContext *ctx);
 
+// 能力状態をブロードキャスト
+void broadcast_ability_state(ServerContext *ctx, int player_id);
