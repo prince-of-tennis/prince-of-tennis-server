@@ -79,23 +79,47 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 {
                     memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
 
-                    // 能力設定を取得
-                    const AbilityConfig* config = ability_get_config(request.ability_type);
-                    if (config != nullptr && config->requires_server)
+                    // #86: でかすぎんだろ - ボタン押下/離しで切り替え
+                    if (request.ability_type == ABILITY_GIANT)
                     {
-                        // 能力を発動
                         AbilityState* state = &ctx->state.ability_states[i];
                         state->player_id = i;
-                        state->active_ability = request.ability_type;
-                        state->remaining_frames = config->duration_frames;
-                        state->cooldown_frames = config->cooldown_frames;
 
-                        LOG_INFO("能力発動: player=" << i
-                                << " ability=" << static_cast<int>(request.ability_type)
-                                << " duration=" << config->duration_frames);
+                        if (request.trigger == TRIGGER_INSTANT)
+                        {
+                            // ボタン押下 -> 発動
+                            state->active_ability = ABILITY_GIANT;
+                            state->remaining_frames = 1; // 0より大きければアクティブ
+                            LOG_INFO("でかすぎんだろ発動: player=" << i);
+                        }
+                        else
+                        {
+                            // ボタン離し -> 解除
+                            state->active_ability = ABILITY_NONE;
+                            state->remaining_frames = 0;
+                            LOG_INFO("でかすぎんだろ解除: player=" << i);
+                        }
 
-                        // 能力状態をブロードキャスト
                         broadcast_ability_state(ctx, i);
+                    }
+                    else
+                    {
+                        // その他の能力は従来通り
+                        const AbilityConfig* config = ability_get_config(request.ability_type);
+                        if (config != nullptr && config->requires_server)
+                        {
+                            AbilityState* state = &ctx->state.ability_states[i];
+                            state->player_id = i;
+                            state->active_ability = request.ability_type;
+                            state->remaining_frames = config->duration_frames;
+                            state->cooldown_frames = config->cooldown_frames;
+
+                            LOG_INFO("能力発動: player=" << i
+                                    << " ability=" << static_cast<int>(request.ability_type)
+                                    << " duration=" << config->duration_frames);
+
+                            broadcast_ability_state(ctx, i);
+                        }
                     }
                 }
             }

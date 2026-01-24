@@ -15,6 +15,13 @@ static void update_ability_states(ServerContext *ctx)
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         AbilityState *state = &ctx->state.ability_states[i];
+
+        // ABILITY_GIANTはボタン押下中のみ有効なので自動解除しない
+        if (state->active_ability == ABILITY_GIANT)
+        {
+            continue;
+        }
+
         if (state->remaining_frames > 0)
         {
             state->remaining_frames--;

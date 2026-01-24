@@ -80,10 +80,6 @@ bool server_wait_for_clients(ServerContext *ctx)
             {
                 LOG_DEBUG("新しいクライアントを受け付けました (スロット " << player_id << ")");
 
-                // PlayerにIDを割り当てて送信
-                Packet packet = create_packet_player_id(player_id);
-                network_send_packet(new_client_socket, &packet);
-
                 // ソケットセットに追加
                 SDLNet_TCP_AddSocket(ctx->socket_set, new_client_socket);
 
@@ -103,6 +99,17 @@ bool server_wait_for_clients(ServerContext *ctx)
     }
 
     LOG_SUCCESS("全クライアント接続完了");
+
+    // 全クライアントの接続が完了したので、各クライアントにplayer_idを送信
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (ctx->connections[i].socket)
+        {
+            Packet packet = create_packet_player_id(i);
+            network_send_packet(ctx->connections[i].socket, &packet);
+            LOG_DEBUG("Player ID " << i << " を送信しました");
+        }
+    }
     return true;
 }
 
