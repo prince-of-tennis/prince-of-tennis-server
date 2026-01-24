@@ -122,8 +122,6 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
     // Z軸方向の速度を抑制（飛びすぎ防止）
     ball->velocity.z *= Z_VELOCITY_DAMPING;
 
-    // 最後に打ったプレイヤーを記録
-    int previous_player_id = ball->last_hit_player_id;
     ball->last_hit_player_id = player_id;
 
     // バウンド回数をリセット
