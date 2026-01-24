@@ -112,7 +112,6 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                             state->player_id = i;
                             state->active_ability = request.ability_type;
                             state->remaining_frames = config->duration_frames;
-                            state->cooldown_frames = config->cooldown_frames;
 
                             LOG_INFO("能力発動: player=" << i
                                     << " ability=" << static_cast<int>(request.ability_type)
