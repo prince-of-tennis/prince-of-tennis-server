@@ -55,4 +55,7 @@ constexpr float SWING_SPEED_MAX = 25.0f;          // 打球の最高速度（m/s
 constexpr float BALL_SHOT_SPEED_BASE = 12.0f;     // 基本打球速度（m/s）
 
 // Z軸速度抑制パラメータ
-constexpr float Z_VELOCITY_DAMPING = 2.2f;        // Z軸方向の速度減衰係数
+constexpr float Z_VELOCITY_DAMPING = 2.2f;
+
+// 能力関連パラメータ
+constexpr float ABILITY_SPEED_UP_MULTIPLIER = 2.0f;  // #84: スピードアップ時の速度倍率        // Z軸方向の速度減衰係数

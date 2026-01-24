@@ -4,9 +4,38 @@
 #include "log.h"
 #include "game/game_phase_manager.h"
 #include "common/game_constants.h"
+#include "common/ability.h"
 #include "server_broadcast.h"
 #include "game_update.h"
 #include "../server_constants.h"
+
+// 能力状態のtick処理
+static void update_ability_states(ServerContext *ctx)
+{
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        AbilityState *state = &ctx->state.ability_states[i];
+
+        // ABILITY_GIANTはボタン押下中のみ有効なので自動解除しない
+        if (state->active_ability == ABILITY_GIANT)
+        {
+            continue;
+        }
+
+        if (state->remaining_frames > 0)
+        {
+            state->remaining_frames--;
+
+            // 能力終了時にブロードキャスト
+            if (state->remaining_frames == 0)
+            {
+                LOG_INFO("能力終了: player=" << i << " ability=" << static_cast<int>(state->active_ability));
+                state->active_ability = ABILITY_NONE;
+                broadcast_ability_state(ctx, i);
+            }
+        }
+    }
+}
 
 void server_run_main_loop(ServerContext *ctx)
 {
@@ -56,6 +85,9 @@ void server_run_main_loop(ServerContext *ctx)
 
         // 物理更新とスコアリング
         game_update_physics_and_scoring(ctx, dt);
+
+        // 能力状態の更新
+        update_ability_states(ctx);
 
         // ボール状態の送信処理
         broadcast_ball_state(ctx);

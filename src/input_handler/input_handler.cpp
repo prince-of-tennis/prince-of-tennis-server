@@ -3,6 +3,7 @@
 #include "physics/ball_physics.h"
 #include "game/game_phase_manager.h"
 #include "common/game_constants.h"
+#include "common/ability.h"
 #include "../server_constants.h"
 #include "../log.h"
 #include <math.h>
@@ -104,14 +105,23 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
     if (speed < SWING_SPEED_MIN) speed = SWING_SPEED_MIN;  // 最低速度
     if (speed > SWING_SPEED_MAX) speed = SWING_SPEED_MAX;  // 最高速度
 
+    // #84: スピードアップ能力チェック
+    AbilityState* ability_state = &state->ability_states[player_id];
+    if (ability_state->active_ability == ABILITY_SPEED_UP && ability_state->remaining_frames > 0)
+    {
+        speed *= ABILITY_SPEED_UP_MULTIPLIER;
+        LOG_INFO("スピードアップ発動！ player=" << player_id << " 速度=" << speed << "m/s");
+        // 能力を消費（1回の打球にのみ適用）
+        ability_state->active_ability = ABILITY_NONE;
+        ability_state->remaining_frames = 0;
+    }
+
     // ボールを打つ
     handle_racket_hit(ball, dir, speed);
 
     // Z軸方向の速度を抑制（飛びすぎ防止）
     ball->velocity.z *= Z_VELOCITY_DAMPING;
 
-    // 最後に打ったプレイヤーを記録
-    int previous_player_id = ball->last_hit_player_id;
     ball->last_hit_player_id = player_id;
 
     // バウンド回数をリセット

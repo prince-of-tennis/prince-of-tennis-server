@@ -378,6 +378,11 @@ Packet create_packet_phase(GamePhase phase)
     return create_packet_with_data(PACKET_TYPE_GAME_PHASE, &phase, sizeof(GamePhase));
 }
 
+Packet create_packet_ability_state(const AbilityState *state)
+{
+    return create_packet_with_data(PACKET_TYPE_ABILITY_STATE, state, sizeof(AbilityState));
+}
+
 // =====================================================
 // ユーティリティ関数
 // =====================================================

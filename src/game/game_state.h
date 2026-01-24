@@ -4,6 +4,7 @@
 #include "physics/ball_physics.h"
 #include "common/GameScore.h"
 #include "common/GamePhase.h"
+#include "common/ability.h"
 #include "common/player.h"
 #include "network/network.h"
 
@@ -17,6 +18,9 @@ typedef struct
     GamePhase phase;
 
     int server_player_id;
+
+    // 能力状態（プレイヤーごと）
+    AbilityState ability_states[MAX_CLIENTS];
 } GameState;
 
 void init_game(GameState *state);
