@@ -31,8 +31,11 @@ void update_ball(Ball *ball, float dt)
     // 前フレームのZ座標を保存（ネット判定用）
     ball->previous_z = ball->point.z;
 
+    // 重力倍率（未設定なら1.0）
+    float gravity_mult = (ball->gravity_multiplier > 0.0f) ? ball->gravity_multiplier : 1.0f;
+
     // 重力 (Y軸マイナス方向へ)
-    ball->velocity.y -= GameConstants::GRAVITY * dt;
+    ball->velocity.y -= GameConstants::GRAVITY * gravity_mult * dt;
 
     // 位置の更新
     ball->point = point3d_add(ball->point, point3d_mul(ball->velocity, dt));
@@ -88,6 +91,7 @@ void reset_ball(Ball *ball, int server_player_id)
     ball->bounce_count = 0;
     ball->hit_count = 0;
     ball->previous_z = ball->point.z;  // 初期位置のZ座標を保存
+    ball->gravity_multiplier = 1.0f;   // 重力倍率を通常に戻す
 
     LOG_DEBUG("ボール初期化完了: サーバー=Player" << server_player_id);
 }

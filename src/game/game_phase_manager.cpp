@@ -85,15 +85,12 @@ static void handle_point_scored_phase(GameState *state)
     }
 }
 
-// ゲーム終了フェーズの処理
+// ゲーム終了フェーズの処理（待機なしで即座に終了）
 static void handle_game_finished_phase(GameState *state, volatile int *running)
 {
-    if (state->state_timer > TIME_GAME_FINISHED)
+    if (running)
     {
-        if (running)
-        {
-            *running = 0;
-        }
+        *running = 0;
     }
 }
 

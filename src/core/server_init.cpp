@@ -6,7 +6,7 @@
 #include "game/game_phase_manager.h"
 #include "../server_constants.h"
 
-bool server_initialize(ServerContext *ctx)
+bool server_initialize(ServerContext *ctx, int port)
 {
     // コンテキストをゼロクリア
     memset(ctx, 0, sizeof(ServerContext));
@@ -18,8 +18,8 @@ bool server_initialize(ServerContext *ctx)
     ctx->last_sent_score.sets_p1 = GAME_SCORE_INVALID;
     ctx->last_sent_score.sets_p2 = GAME_SCORE_INVALID;
 
-    // サーバーソケット初期化
-    ctx->server_socket = network_init_server(SERVER_PORT);
+    // サーバーソケット初期化（コマンドライン引数で指定されたポートを使用）
+    ctx->server_socket = network_init_server(port);
     if (!ctx->server_socket)
     {
         LOG_ERROR("サーバーソケット初期化失敗");

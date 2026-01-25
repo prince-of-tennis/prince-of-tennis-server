@@ -7,7 +7,7 @@
 // フェーズタイマー定数
 constexpr float TIME_MATCH_COMPLETE = 2.0f;    // マッチング完了後、ゲーム開始までの時間（秒）
 constexpr float TIME_AFTER_POINT = 3.0f;       // 得点後から次のサーブまでの時間（秒）
-constexpr float TIME_GAME_FINISHED = 5.0f;     // ゲーム終了後、サーバー終了までの時間（秒）
+constexpr float TIME_GAME_FINISHED = 1.0f;     // ゲーム終了後、サーバー終了までの時間（秒）
 
 // ネットワークタイムアウト定数
 constexpr int NETWORK_RECEIVE_MAX_ATTEMPTS = 100;      // パケット受信の最大試行回数

@@ -112,10 +112,14 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
 
     ball->velocity.z *= Z_VELOCITY_DAMPING;
 
+    // 通常時は重力倍率を1.0にリセット
+    ball->gravity_multiplier = 1.0f;
+
     if (speed_up_active)
     {
         ball->velocity.z *= 3.0f;
-        ball->velocity.y *= 0.7f;
+        // ball->velocity.y *= 0.5f;           // Y軸の初速をさらに下げる
+        ball->gravity_multiplier = 2.0f;
         LOG_INFO("スピードアップ発動！ player=" << player_id);
         ability_state->active_ability = ABILITY_NONE;
         ability_state->remaining_frames = 0;
