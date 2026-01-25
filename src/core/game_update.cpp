@@ -18,7 +18,13 @@ void game_handle_client_input(ServerContext *ctx, float dt)
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (ctx->players[i].connected && ctx->connections[i].socket && SDLNet_SocketReady(ctx->connections[i].socket))
+        if (!ctx->players[i].connected || !ctx->connections[i].socket)
+        {
+            continue;
+        }
+
+        // 利用可能なすべてのパケットを処理（能力リクエストとスイングが同フレームで処理されるように）
+        while (SDLNet_SocketReady(ctx->connections[i].socket))
         {
             Packet packet;
             int size = network_receive_packet(ctx->connections[i].socket, &packet);
@@ -28,7 +34,7 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 LOG_WARN("クライアント " << i << " から切断されました");
                 SDLNet_TCP_DelSocket(ctx->socket_set, ctx->connections[i].socket);
                 network_close_client(&ctx->players[i], &ctx->connections[i]);
-                continue;
+                break;
             }
 
             // パケットの種類をチェック
@@ -79,25 +85,22 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 {
                     memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
 
-                    // #86: でかすぎんだろ - ボタン押下/離しで切り替え
-                    if (request.ability_type == ABILITY_GIANT)
+                    if (request.ability_type == ABILITY_GIANT || request.ability_type == ABILITY_CLONE)
                     {
                         AbilityState* state = &ctx->state.ability_states[i];
                         state->player_id = i;
 
                         if (request.trigger == TRIGGER_INSTANT)
                         {
-                            // ボタン押下 -> 発動
-                            state->active_ability = ABILITY_GIANT;
-                            state->remaining_frames = 1; // 0より大きければアクティブ
-                            LOG_INFO("でかすぎんだろ発動: player=" << i);
+                            state->active_ability = request.ability_type;
+                            state->remaining_frames = 1;
+                            LOG_INFO("能力発動: player=" << i << " type=" << static_cast<int>(request.ability_type));
                         }
                         else
                         {
-                            // ボタン離し -> 解除
                             state->active_ability = ABILITY_NONE;
                             state->remaining_frames = 0;
-                            LOG_INFO("でかすぎんだろ解除: player=" << i);
+                            LOG_INFO("能力解除: player=" << i);
                         }
 
                         broadcast_ability_state(ctx, i);

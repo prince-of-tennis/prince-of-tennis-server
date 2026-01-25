@@ -16,8 +16,7 @@ static void update_ability_states(ServerContext *ctx)
     {
         AbilityState *state = &ctx->state.ability_states[i];
 
-        // ABILITY_GIANTはボタン押下中のみ有効なので自動解除しない
-        if (state->active_ability == ABILITY_GIANT)
+        if (state->active_ability == ABILITY_GIANT || state->active_ability == ABILITY_CLONE)
         {
             continue;
         }
