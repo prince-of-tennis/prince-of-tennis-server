@@ -16,3 +16,7 @@ bool server_wait_for_clients(ServerContext *ctx);
 // ネットワークリソースを解放し、SDLをシャットダウン
 void server_cleanup(ServerContext *ctx);
 
+// ゲームリセット（新しいゲームのために再待機）
+// クライアント接続を切断し、ゲーム状態をリセット
+void server_reset_for_new_game(ServerContext *ctx);
+

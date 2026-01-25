@@ -21,6 +21,10 @@ typedef struct
 
     // 能力状態（プレイヤーごと）
     AbilityState ability_states[MAX_CLIENTS];
+
+    // 試合結果（-1: 未確定、0: P1勝利、1: P2勝利）
+    int match_winner;
+    bool match_result_sent;  // 試合結果送信済みフラグ
 } GameState;
 
 void init_game(GameState *state);

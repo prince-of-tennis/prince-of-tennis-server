@@ -13,14 +13,10 @@ bool server_initialize(ServerContext *ctx)
 
     // フェーズ・スコアの初期値設定
     ctx->last_sent_phase = (GamePhase)GAME_SCORE_INVALID;
-    ctx->last_sent_score.current_set = GAME_SCORE_INVALID;
-    ctx->last_sent_score.current_game_p1 = GAME_SCORE_INVALID;
-    ctx->last_sent_score.current_game_p2 = GAME_SCORE_INVALID;
-    for (int i = 0; i < MAX_SETS; i++)
-    {
-        ctx->last_sent_score.games_in_set[i][0] = GAME_SCORE_INVALID;
-        ctx->last_sent_score.games_in_set[i][1] = GAME_SCORE_INVALID;
-    }
+    ctx->last_sent_score.point_p1 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.point_p2 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.sets_p1 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.sets_p2 = GAME_SCORE_INVALID;
 
     // サーバーソケット初期化
     ctx->server_socket = network_init_server(SERVER_PORT);
@@ -130,5 +126,35 @@ void server_cleanup(ServerContext *ctx)
     }
 
     LOG_SUCCESS("サーバークリーンアップ完了");
+}
+
+void server_reset_for_new_game(ServerContext *ctx)
+{
+    LOG_INFO("ゲームをリセットして再待機します...");
+
+    // クライアント接続を切断
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (ctx->connections[i].socket)
+        {
+            SDLNet_TCP_DelSocket(ctx->socket_set, ctx->connections[i].socket);
+            SDLNet_TCP_Close(ctx->connections[i].socket);
+            ctx->connections[i].socket = NULL;
+        }
+        ctx->players[i].connected = false;
+    }
+
+    // ゲーム状態をリセット
+    init_game(&ctx->state);
+    init_phase_manager(&ctx->state);
+
+    // 送信済みフラグをリセット
+    ctx->last_sent_phase = (GamePhase)GAME_SCORE_INVALID;
+    ctx->last_sent_score.point_p1 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.point_p2 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.sets_p1 = GAME_SCORE_INVALID;
+    ctx->last_sent_score.sets_p2 = GAME_SCORE_INVALID;
+
+    LOG_SUCCESS("ゲームリセット完了");
 }
 

@@ -40,15 +40,33 @@ int main(int argc, char *argv[])
     // runningフラグを設定（server_initialize内のmemsetの後に設定する必要がある）
     ctx.running = &g_running;
 
-    // クライアント接続待機
-    if (!server_wait_for_clients(&ctx))
+    // メインループ（ゲーム終了後に再待機）
+    while (g_running)
     {
-        server_cleanup(&ctx);
-        return g_running ? 1 : 0;
-    }
+        // クライアント接続待機
+        if (!server_wait_for_clients(&ctx))
+        {
+            if (!g_running)
+            {
+                // Ctrl+C で中断された場合
+                break;
+            }
+            // エラーの場合は終了
+            server_cleanup(&ctx);
+            return 1;
+        }
 
-    // メインループ実行
-    server_run_main_loop(&ctx);
+        // メインループ実行
+        server_run_main_loop(&ctx);
+
+        // ゲーム終了後、Ctrl+C でなければリセットして再待機
+        if (ctx.state.match_result_sent && ctx.state.phase == GAME_PHASE_GAME_FINISHED)
+        {
+            server_reset_for_new_game(&ctx);
+            // running を1に戻す（server_run_main_loop で0になっている可能性）
+            g_running = 1;
+        }
+    }
 
     // クリーンアップ
     server_cleanup(&ctx);

@@ -1,97 +1,65 @@
 #include "score_logic.h"
 #include "../log.h"
 #include "../server_constants.h"
-#include <stdio.h>
-
-// ゲーム獲得処理のヘルパー関数
-static bool award_game(GameScore *score, int winner)
-{
-    score->games_in_set[score->current_set][winner]++;
-    score->current_game_p1 = 0;
-    score->current_game_p2 = 0;
-
-    printf("[SCORE] Player %d wins the GAME!\n", winner + 1);
-
-    // --- セット終了判定 (簡易版: 6ゲーム先取) ---
-    if (score->games_in_set[score->current_set][winner] >= 6)
-    {
-        LOG_SUCCESS("プレイヤー " << (winner + 1) << " がセット " << (score->current_set + 1) << " を獲得！");
-
-        // 次のセットへ
-        score->current_set++;
-        if (match_finished(score))
-        {
-            LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// 40点状態での得点処理（デュース、アドバンテージ）
-static bool handle_forty_point(int *win_pt, int *lose_pt, GameScore *score, int winner)
-{
-    if (*lose_pt < TENNIS_SCORE_FORTY)
-    {
-        // ゲーム獲得 (相手が40未満なら勝ち)
-        return award_game(score, winner);
-    }
-    else if (*lose_pt == TENNIS_SCORE_FORTY)
-    {
-        // デュースからアドバンテージへ
-        *win_pt = TENNIS_SCORE_ADVANTAGE;
-    }
-    else if (*lose_pt == TENNIS_SCORE_ADVANTAGE)
-    {
-        // 相手のアドバンテージを相殺、デュースに戻る
-        *lose_pt = TENNIS_SCORE_FORTY;
-        *win_pt = TENNIS_SCORE_FORTY;
-    }
-
-    return true;
-}
 
 void init_score(GameScore *score)
 {
-    score->current_set = 0;
-    score->current_game_p1 = 0;
-    score->current_game_p2 = 0;
+    score->point_p1 = 0;
+    score->point_p2 = 0;
+    score->sets_p1 = 0;
+    score->sets_p2 = 0;
+}
 
-    for (int i = 0; i < MAX_SETS; i++)
+// セット獲得処理
+static bool award_set(GameScore *score, int winner)
+{
+    if (winner == 0)
     {
-        score->games_in_set[i][0] = 0;
-        score->games_in_set[i][1] = 0;
+        score->sets_p1++;
+        LOG_SUCCESS("プレイヤー 1 がセットを獲得！ (" << score->sets_p1 << " - " << score->sets_p2 << ")");
     }
+    else
+    {
+        score->sets_p2++;
+        LOG_SUCCESS("プレイヤー 2 がセットを獲得！ (" << score->sets_p1 << " - " << score->sets_p2 << ")");
+    }
+
+    // ポイントをリセット
+    score->point_p1 = 0;
+    score->point_p2 = 0;
+
+    // 試合終了判定
+    if (match_finished(score))
+    {
+        LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
+        return false;  // 試合終了
+    }
+
+    return true;  // 試合継続
 }
 
 bool add_point(GameScore *score, int winner)
 {
-    // 勝者と敗者の現在のポイントへのポインタを取得
-    int *win_pt = (winner == 0) ? &score->current_game_p1 : &score->current_game_p2;
-    int *lose_pt = (winner == 0) ? &score->current_game_p2 : &score->current_game_p1;
+    int *win_pt = (winner == 0) ? &score->point_p1 : &score->point_p2;
 
-    // ポイント加算ロジック（テニスのスコア遷移）
-    if (*win_pt == TENNIS_SCORE_LOVE)
+    // ポイント加算 (0 → 15 → 30 → 40 → 50)
+    if (*win_pt == 0)
     {
-        *win_pt = TENNIS_SCORE_FIFTEEN;
+        *win_pt = 15;
     }
-    else if (*win_pt == TENNIS_SCORE_FIFTEEN)
+    else if (*win_pt == 15)
     {
-        *win_pt = TENNIS_SCORE_THIRTY;
+        *win_pt = 30;
     }
-    else if (*win_pt == TENNIS_SCORE_THIRTY)
+    else if (*win_pt == 30)
     {
-        *win_pt = TENNIS_SCORE_FORTY;
+        *win_pt = 40;
     }
-    else if (*win_pt == TENNIS_SCORE_FORTY)
+    else if (*win_pt == 40)
     {
-        return handle_forty_point(win_pt, lose_pt, score, winner);
-    }
-    else if (*win_pt == TENNIS_SCORE_ADVANTAGE)
-    {
-        // アドバンテージ状態でポイント取ったのでゲーム獲得
-        return award_game(score, winner);
+        *win_pt = 50;
+        // 50点でセット獲得
+        return award_set(score, winner);
     }
 
     return true;
@@ -99,25 +67,18 @@ bool add_point(GameScore *score, int winner)
 
 void print_score(const GameScore *score)
 {
-    if (score->current_set < MAX_SETS)
-    {
-        LOG_INFO("セット: " << (score->current_set + 1)
-                 << " | ゲーム: " << score->games_in_set[score->current_set][0]
-                 << " - " << score->games_in_set[score->current_set][1]
-                 << " | ポイント: " << score->current_game_p1
-                 << " - " << score->current_game_p2);
-    }
-    else
-    {
-        LOG_INFO("試合終了");
-    }
+    LOG_INFO("セット: " << score->sets_p1 << " - " << score->sets_p2
+             << " | ポイント: " << score->point_p1 << " - " << score->point_p2);
 }
 
-// ========================================================
-// マッチ終了判定の実装
-// ========================================================
 bool match_finished(const GameScore *score)
 {
-    // 現在のセット番号が MAX_SETS (例: 1または3) に達していたら終了とみなす
-    return score->current_set >= MAX_SETS;
+    return (score->sets_p1 >= SETS_TO_WIN || score->sets_p2 >= SETS_TO_WIN);
+}
+
+int get_match_winner(const GameScore *score)
+{
+    if (score->sets_p1 >= SETS_TO_WIN) return 0;
+    if (score->sets_p2 >= SETS_TO_WIN) return 1;
+    return -1;
 }

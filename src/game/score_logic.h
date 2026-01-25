@@ -11,4 +11,6 @@ bool add_point(GameScore *score, int player_index);
 void print_score(const GameScore *score);
 // マッチ終了判定
 bool match_finished(const GameScore *score);
+// 勝者を返す（-1: まだ決まっていない、0: P1、1: P2）
+int get_match_winner(const GameScore *score);
 #endif // SCORE_LOGIC_H

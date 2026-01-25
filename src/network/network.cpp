@@ -383,6 +383,11 @@ Packet create_packet_ability_state(const AbilityState *state)
     return create_packet_with_data(PACKET_TYPE_ABILITY_STATE, state, sizeof(AbilityState));
 }
 
+Packet create_packet_match_result(int winner_id)
+{
+    return create_packet_with_data(PACKET_TYPE_MATCH_RESULT, &winner_id, sizeof(int));
+}
+
 // =====================================================
 // ユーティリティ関数
 // =====================================================

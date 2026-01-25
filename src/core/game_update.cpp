@@ -155,8 +155,8 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             LOG_INFO("判定: ネット! Y=" << ball->point.y << "m (NET_HEIGHT="
                      << GameConstants::NET_HEIGHT << "m) 勝者: P" << winner_id);
 
-            // スコア加算
-            add_point(&ctx->state.score, winner_id);
+            // スコア加算（falseなら試合終了）
+            bool game_continues = add_point(&ctx->state.score, winner_id);
 
             // スコア送信
             broadcast_score_update(ctx);
@@ -164,14 +164,23 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             // スコア表示
             print_score(&ctx->state.score);
 
-            // フェーズ移行（次のサーブ準備へ）
-            set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+            if (!game_continues)
+            {
+                // 試合終了
+                ctx->state.match_winner = winner_id;
+                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
+            }
+            else
+            {
+                // フェーズ移行（次のサーブ準備へ）
+                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
 
-            // 得点後にボールを初期化
-            int next_server = GameConstants::get_opponent_player_id(winner_id);
-            reset_ball(&ctx->state.ball, next_server);
-            ctx->state.server_player_id = next_server;
-            LOG_INFO("次のサーブ: Player" << next_server);
+                // 得点後にボールを初期化
+                int next_server = GameConstants::get_opponent_player_id(winner_id);
+                reset_ball(&ctx->state.ball, next_server);
+                ctx->state.server_player_id = next_server;
+                LOG_INFO("次のサーブ: Player" << next_server);
+            }
 
             return;  // ネット判定で処理完了したので、バウンド判定はスキップ
         }
@@ -191,8 +200,8 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
         {
             LOG_INFO("得点加算: Player" << winner_id << " が得点");
 
-            // スコア加算
-            add_point(&ctx->state.score, winner_id);
+            // スコア加算（falseなら試合終了）
+            bool game_continues = add_point(&ctx->state.score, winner_id);
 
             // スコア送信
             broadcast_score_update(ctx);
@@ -200,15 +209,24 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             // スコア表示
             print_score(&ctx->state.score);
 
-            // フェーズ移行（次のサーブ準備へ）
-            set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+            if (!game_continues)
+            {
+                // 試合終了
+                ctx->state.match_winner = winner_id;
+                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
+            }
+            else
+            {
+                // フェーズ移行（次のサーブ準備へ）
+                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
 
-            // 得点後にボールを初期化
-            // 次のサーバーは得点者の相手（テニスのルール）
-            int next_server = GameConstants::get_opponent_player_id(winner_id);
-            reset_ball(&ctx->state.ball, next_server);
-            ctx->state.server_player_id = next_server;
-            LOG_INFO("次のサーブ: Player" << next_server);
+                // 得点後にボールを初期化
+                // 次のサーバーは得点者の相手（テニスのルール）
+                int next_server = GameConstants::get_opponent_player_id(winner_id);
+                reset_ball(&ctx->state.ball, next_server);
+                ctx->state.server_player_id = next_server;
+                LOG_INFO("次のサーブ: Player" << next_server);
+            }
         }
     }
 }

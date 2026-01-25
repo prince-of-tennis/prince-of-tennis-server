@@ -60,3 +60,10 @@ void broadcast_ability_state(ServerContext *ctx, int player_id)
     Packet ability_packet = create_packet_ability_state(&ctx->state.ability_states[player_id]);
     network_broadcast(ctx->players, ctx->connections, &ability_packet);
 }
+
+void broadcast_match_result(ServerContext *ctx, int winner_id)
+{
+    LOG_SUCCESS("試合結果を送信: 勝者 Player " << (winner_id + 1));
+    Packet result_packet = create_packet_match_result(winner_id);
+    network_broadcast(ctx->players, ctx->connections, &result_packet);
+}
