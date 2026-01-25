@@ -73,6 +73,9 @@ static void handle_point_scored_phase(GameState *state)
 
         if (match_finished(&state->score))
         {
+            // 勝者を記録
+            state->match_winner = get_match_winner(&state->score);
+            LOG_SUCCESS("試合終了！勝者: Player " << (state->match_winner + 1));
             set_game_phase(state, GAME_PHASE_GAME_FINISHED);
         }
         else
@@ -87,7 +90,6 @@ static void handle_game_finished_phase(GameState *state, volatile int *running)
 {
     if (state->state_timer > TIME_GAME_FINISHED)
     {
-        LOG_INFO("サーバーをシャットダウンします...");
         if (running)
         {
             *running = 0;

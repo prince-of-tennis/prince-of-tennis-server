@@ -48,4 +48,8 @@ void init_game(GameState *state)
     // 能力状態初期化
     std::memset(state->ability_states, 0, sizeof(state->ability_states));
     LOG_INFO("能力状態初期化完了");
+
+    // 試合結果初期化
+    state->match_winner = -1;
+    state->match_result_sent = false;
 }

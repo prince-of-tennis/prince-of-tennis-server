@@ -18,7 +18,13 @@ void game_handle_client_input(ServerContext *ctx, float dt)
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (ctx->players[i].connected && ctx->connections[i].socket && SDLNet_SocketReady(ctx->connections[i].socket))
+        if (!ctx->players[i].connected || !ctx->connections[i].socket)
+        {
+            continue;
+        }
+
+        // 利用可能なすべてのパケットを処理（能力リクエストとスイングが同フレームで処理されるように）
+        while (SDLNet_SocketReady(ctx->connections[i].socket))
         {
             Packet packet;
             int size = network_receive_packet(ctx->connections[i].socket, &packet);
@@ -28,7 +34,7 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 LOG_WARN("クライアント " << i << " から切断されました");
                 SDLNet_TCP_DelSocket(ctx->socket_set, ctx->connections[i].socket);
                 network_close_client(&ctx->players[i], &ctx->connections[i]);
-                continue;
+                break;
             }
 
             // パケットの種類をチェック
@@ -79,25 +85,22 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 {
                     memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
 
-                    // #86: でかすぎんだろ - ボタン押下/離しで切り替え
-                    if (request.ability_type == ABILITY_GIANT)
+                    if (request.ability_type == ABILITY_GIANT || request.ability_type == ABILITY_CLONE)
                     {
                         AbilityState* state = &ctx->state.ability_states[i];
                         state->player_id = i;
 
                         if (request.trigger == TRIGGER_INSTANT)
                         {
-                            // ボタン押下 -> 発動
-                            state->active_ability = ABILITY_GIANT;
-                            state->remaining_frames = 1; // 0より大きければアクティブ
-                            LOG_INFO("でかすぎんだろ発動: player=" << i);
+                            state->active_ability = request.ability_type;
+                            state->remaining_frames = 1;
+                            LOG_INFO("能力発動: player=" << i << " type=" << static_cast<int>(request.ability_type));
                         }
                         else
                         {
-                            // ボタン離し -> 解除
                             state->active_ability = ABILITY_NONE;
                             state->remaining_frames = 0;
-                            LOG_INFO("でかすぎんだろ解除: player=" << i);
+                            LOG_INFO("能力解除: player=" << i);
                         }
 
                         broadcast_ability_state(ctx, i);
@@ -112,7 +115,6 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                             state->player_id = i;
                             state->active_ability = request.ability_type;
                             state->remaining_frames = config->duration_frames;
-                            state->cooldown_frames = config->cooldown_frames;
 
                             LOG_INFO("能力発動: player=" << i
                                     << " ability=" << static_cast<int>(request.ability_type)
@@ -153,8 +155,8 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             LOG_INFO("判定: ネット! Y=" << ball->point.y << "m (NET_HEIGHT="
                      << GameConstants::NET_HEIGHT << "m) 勝者: P" << winner_id);
 
-            // スコア加算
-            add_point(&ctx->state.score, winner_id);
+            // スコア加算（falseなら試合終了）
+            bool game_continues = add_point(&ctx->state.score, winner_id);
 
             // スコア送信
             broadcast_score_update(ctx);
@@ -162,14 +164,23 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             // スコア表示
             print_score(&ctx->state.score);
 
-            // フェーズ移行（次のサーブ準備へ）
-            set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+            if (!game_continues)
+            {
+                // 試合終了
+                ctx->state.match_winner = winner_id;
+                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
+            }
+            else
+            {
+                // フェーズ移行（次のサーブ準備へ）
+                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
 
-            // 得点後にボールを初期化
-            int next_server = GameConstants::get_opponent_player_id(winner_id);
-            reset_ball(&ctx->state.ball, next_server);
-            ctx->state.server_player_id = next_server;
-            LOG_INFO("次のサーブ: Player" << next_server);
+                // 得点後にボールを初期化
+                int next_server = GameConstants::get_opponent_player_id(winner_id);
+                reset_ball(&ctx->state.ball, next_server);
+                ctx->state.server_player_id = next_server;
+                LOG_INFO("次のサーブ: Player" << next_server);
+            }
 
             return;  // ネット判定で処理完了したので、バウンド判定はスキップ
         }
@@ -189,8 +200,8 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
         {
             LOG_INFO("得点加算: Player" << winner_id << " が得点");
 
-            // スコア加算
-            add_point(&ctx->state.score, winner_id);
+            // スコア加算（falseなら試合終了）
+            bool game_continues = add_point(&ctx->state.score, winner_id);
 
             // スコア送信
             broadcast_score_update(ctx);
@@ -198,15 +209,24 @@ void game_update_physics_and_scoring(ServerContext *ctx, float dt)
             // スコア表示
             print_score(&ctx->state.score);
 
-            // フェーズ移行（次のサーブ準備へ）
-            set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+            if (!game_continues)
+            {
+                // 試合終了
+                ctx->state.match_winner = winner_id;
+                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
+            }
+            else
+            {
+                // フェーズ移行（次のサーブ準備へ）
+                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
 
-            // 得点後にボールを初期化
-            // 次のサーバーは得点者の相手（テニスのルール）
-            int next_server = GameConstants::get_opponent_player_id(winner_id);
-            reset_ball(&ctx->state.ball, next_server);
-            ctx->state.server_player_id = next_server;
-            LOG_INFO("次のサーブ: Player" << next_server);
+                // 得点後にボールを初期化
+                // 次のサーバーは得点者の相手（テニスのルール）
+                int next_server = GameConstants::get_opponent_player_id(winner_id);
+                reset_ball(&ctx->state.ball, next_server);
+                ctx->state.server_player_id = next_server;
+                LOG_INFO("次のサーブ: Player" << next_server);
+            }
         }
     }
 }

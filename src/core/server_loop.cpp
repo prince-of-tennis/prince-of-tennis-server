@@ -16,8 +16,7 @@ static void update_ability_states(ServerContext *ctx)
     {
         AbilityState *state = &ctx->state.ability_states[i];
 
-        // ABILITY_GIANTはボタン押下中のみ有効なので自動解除しない
-        if (state->active_ability == ABILITY_GIANT)
+        if (state->active_ability == ABILITY_GIANT || state->active_ability == ABILITY_CLONE)
         {
             continue;
         }
@@ -94,6 +93,13 @@ void server_run_main_loop(ServerContext *ctx)
 
         // ゲームフェーズ更新の送信
         broadcast_phase_update(ctx);
+
+        // 試合終了時、結果を送信（1回だけ）
+        if (ctx->state.phase == GAME_PHASE_GAME_FINISHED && !ctx->state.match_result_sent)
+        {
+            broadcast_match_result(ctx, ctx->state.match_winner);
+            ctx->state.match_result_sent = true;
+        }
 
         SDL_Delay(GameConstants::FRAME_DELAY_MS); // 60fps
     }

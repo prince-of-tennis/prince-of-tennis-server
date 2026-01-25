@@ -46,6 +46,7 @@ Packet create_packet_ball_state(const Ball *ball);
 Packet create_packet_score(const GameScore *score);
 Packet create_packet_phase(GamePhase phase);
 Packet create_packet_ability_state(const AbilityState *state);
+Packet create_packet_match_result(int winner_id);
 
 // ユーティリティ関数
 int count_connected_clients(const Player players[]);
