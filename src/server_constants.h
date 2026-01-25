@@ -59,3 +59,9 @@ constexpr float Z_VELOCITY_DAMPING = 2.2f;
 
 // 能力関連パラメータ
 constexpr float ABILITY_SPEED_UP_MULTIPLIER = 2.0f;  // #84: スピードアップ時の速度倍率        // Z軸方向の速度減衰係数
+
+// ロブショット用パラメータ（Bボタン）
+constexpr float LOB_SHOT_SPEED_MULTIPLIER = 1.0f;    // ロブショット速度倍率
+constexpr float LOB_SHOT_Y_BOOST = 1.7;             // ロブショットのY軸方向ブースト
+constexpr float LOB_SHOT_Z_BOOST = 0.5f;             // ロブショットのZ軸方向ブースト
+constexpr float LOB_SHOT_GRAVITY_MULTIPLIER = 0.8f;  // ロブショットの重力倍率（少しゆっくり落ちる）

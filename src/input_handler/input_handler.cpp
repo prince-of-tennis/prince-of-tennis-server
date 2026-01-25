@@ -9,7 +9,7 @@
 #include <math.h>
 
 // スイング処理を実行（加速度パラメータを使用）
-static void handle_player_swing(GameState *state, int player_id, float acc_x, float acc_y, float acc_z)
+static void handle_player_swing(GameState *state, int player_id, float acc_x, float acc_y, float acc_z, int shot_type)
 {
     Player *player = &state->players[player_id];
     Ball *ball = &state->ball;
@@ -108,12 +108,31 @@ static void handle_player_swing(GameState *state, int player_id, float acc_x, fl
     AbilityState* ability_state = &state->ability_states[player_id];
     bool speed_up_active = (ability_state->active_ability == ABILITY_SPEED_UP && ability_state->remaining_frames > 0);
 
+    // ロブショットの場合は速度を調整
+    bool is_lob = (shot_type == SHOT_TYPE_LOB);
+    if (is_lob)
+    {
+        speed *= LOB_SHOT_SPEED_MULTIPLIER;
+        LOG_INFO("ロブショット！ player=" << player_id << " speed=" << speed);
+    }
+
     handle_racket_hit(ball, dir, speed);
 
     ball->velocity.z *= Z_VELOCITY_DAMPING;
 
-    // 通常時は重力倍率を1.0にリセット
-    ball->gravity_multiplier = 1.0f;
+    // ロブショットの場合はY軸とZ軸の速度を調整
+    if (is_lob)
+    {
+        ball->velocity.y *= LOB_SHOT_Y_BOOST;   // 高さをつける
+        ball->velocity.z *= LOB_SHOT_Z_BOOST;   // 前に進める
+        ball->gravity_multiplier = LOB_SHOT_GRAVITY_MULTIPLIER;  // ゆっくり落ちる
+        LOG_INFO("ロブ速度調整: y=" << ball->velocity.y << " z=" << ball->velocity.z);
+    }
+    else
+    {
+        // 通常時は重力倍率を1.0にリセット
+        ball->gravity_multiplier = 1.0f;
+    }
 
     if (speed_up_active)
     {
@@ -193,5 +212,5 @@ void apply_player_swing(GameState *state, int player_id, const PlayerSwing *swin
     }
 
     // スイング処理を実行
-    handle_player_swing(state, player_id, swing->acc_x, swing->acc_y, swing->acc_z);
+    handle_player_swing(state, player_id, swing->acc_x, swing->acc_y, swing->acc_z, swing->shot_type);
 }
