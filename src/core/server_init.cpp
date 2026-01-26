@@ -1,6 +1,5 @@
 #include "server_init.h"
 #include <string.h>
-#include <unistd.h>
 #include "log.h"
 #include "common/game_constants.h"
 #include "game/game_phase_manager.h"
@@ -8,17 +7,14 @@
 
 bool server_initialize(ServerContext *ctx, int port)
 {
-    // コンテキストをゼロクリア
     memset(ctx, 0, sizeof(ServerContext));
 
-    // フェーズ・スコアの初期値設定
     ctx->last_sent_phase = (GamePhase)GAME_SCORE_INVALID;
     ctx->last_sent_score.point_p1 = GAME_SCORE_INVALID;
     ctx->last_sent_score.point_p2 = GAME_SCORE_INVALID;
     ctx->last_sent_score.sets_p1 = GAME_SCORE_INVALID;
     ctx->last_sent_score.sets_p2 = GAME_SCORE_INVALID;
 
-    // サーバーソケット初期化（コマンドライン引数で指定されたポートを使用）
     ctx->server_socket = network_init_server(port);
     if (!ctx->server_socket)
     {
@@ -26,21 +22,17 @@ bool server_initialize(ServerContext *ctx, int port)
         return false;
     }
 
-    // ゲーム状態初期化
     init_game(&ctx->state);
     init_phase_manager(&ctx->state);
 
-    // ソケットセット作成
     ctx->socket_set = SDLNet_AllocSocketSet(MAX_CLIENTS + 1);
     if (!ctx->socket_set)
     {
-        LOG_ERROR("ソケットセット作成失敗: " << SDLNet_GetError());
+        LOG_ERROR("ソケットセット作成失敗");
         return false;
     }
 
-    // サーバーソケットをセットに追加
     SDLNet_TCP_AddSocket(ctx->socket_set, ctx->server_socket);
-
     LOG_SUCCESS("サーバー初期化完了");
     return true;
 }
@@ -50,38 +42,32 @@ bool server_wait_for_clients(ServerContext *ctx)
     SDLNet_SocketSet wait_set = SDLNet_AllocSocketSet(1);
     if (!wait_set)
     {
-        LOG_ERROR("待機用ソケットセット作成失敗: " << SDLNet_GetError());
+        LOG_ERROR("待機用ソケットセット作成失敗");
         return false;
     }
     SDLNet_TCP_AddSocket(wait_set, ctx->server_socket);
 
     int connected_count = count_connected_clients(ctx->players);
-    LOG_INFO("クライアント待機開始: 必要人数=" << MAX_CLIENTS);
-
     int player_id = connected_count;
+
     while (connected_count < MAX_CLIENTS && *(ctx->running))
     {
         int ready = SDLNet_CheckSockets(wait_set, SOCKET_TIMEOUT_INIT_WAIT_MS);
         if (ready < 0)
         {
-            LOG_ERROR("ソケットチェック失敗 (待機中): " << SDLNet_GetError());
+            LOG_ERROR("ソケットチェック失敗");
             SDLNet_FreeSocketSet(wait_set);
             return false;
         }
 
         if (ready > 0 && SDLNet_SocketReady(ctx->server_socket))
         {
-            TCPsocket new_client_socket = network_accept_client(ctx->server_socket, ctx->players, ctx->connections);
-            if (new_client_socket)
+            TCPsocket new_socket = network_accept_client(ctx->server_socket, ctx->players, ctx->connections);
+            if (new_socket)
             {
-                LOG_DEBUG("新しいクライアントを受け付けました (スロット " << player_id << ")");
-
-                // ソケットセットに追加
-                SDLNet_TCP_AddSocket(ctx->socket_set, new_client_socket);
-
+                SDLNet_TCP_AddSocket(ctx->socket_set, new_socket);
                 player_id++;
                 connected_count = count_connected_clients(ctx->players);
-                LOG_DEBUG("接続済みクライアント: " << connected_count << " / " << MAX_CLIENTS);
             }
         }
     }
@@ -90,20 +76,18 @@ bool server_wait_for_clients(ServerContext *ctx)
 
     if (!*(ctx->running))
     {
-        LOG_INFO("クライアント待機中に中断されました");
+        LOG_INFO("待機中断");
         return false;
     }
 
     LOG_SUCCESS("全クライアント接続完了");
 
-    // 全クライアントの接続が完了したので、各クライアントにplayer_idを送信
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         if (ctx->connections[i].socket)
         {
             Packet packet = create_packet_player_id(i);
             network_send_packet(ctx->connections[i].socket, &packet);
-            LOG_DEBUG("Player ID " << i << " を送信しました");
         }
     }
     return true;
@@ -111,8 +95,6 @@ bool server_wait_for_clients(ServerContext *ctx)
 
 void server_cleanup(ServerContext *ctx)
 {
-    LOG_INFO("サーバーをクリーンアップしています...");
-
     if (ctx->socket_set)
     {
         SDLNet_FreeSocketSet(ctx->socket_set);
@@ -130,9 +112,6 @@ void server_cleanup(ServerContext *ctx)
 
 void server_reset_for_new_game(ServerContext *ctx)
 {
-    LOG_INFO("ゲームをリセットして再待機します...");
-
-    // クライアント接続を切断
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         if (ctx->connections[i].socket)
@@ -144,11 +123,9 @@ void server_reset_for_new_game(ServerContext *ctx)
         ctx->players[i].connected = false;
     }
 
-    // ゲーム状態をリセット
     init_game(&ctx->state);
     init_phase_manager(&ctx->state);
 
-    // 送信済みフラグをリセット
     ctx->last_sent_phase = (GamePhase)GAME_SCORE_INVALID;
     ctx->last_sent_score.point_p1 = GAME_SCORE_INVALID;
     ctx->last_sent_score.point_p2 = GAME_SCORE_INVALID;
@@ -157,4 +134,3 @@ void server_reset_for_new_game(ServerContext *ctx)
 
     LOG_SUCCESS("ゲームリセット完了");
 }
-

@@ -10,65 +10,46 @@ void init_score(GameScore *score)
     score->sets_p2 = 0;
 }
 
-// セット獲得処理
 static bool award_set(GameScore *score, int winner)
 {
     if (winner == 0)
-    {
         score->sets_p1++;
-        LOG_SUCCESS("プレイヤー 1 がセットを獲得！ (" << score->sets_p1 << " - " << score->sets_p2 << ")");
-    }
     else
-    {
         score->sets_p2++;
-        LOG_SUCCESS("プレイヤー 2 がセットを獲得！ (" << score->sets_p1 << " - " << score->sets_p2 << ")");
-    }
 
-    // ポイントをリセット
     score->point_p1 = 0;
     score->point_p2 = 0;
 
-    // 試合終了判定
     if (match_finished(score))
     {
-        LOG_SUCCESS("試合終了！プレイヤー " << (winner + 1) << " の勝利！");
-        return false;  // 試合終了
+        LOG_SUCCESS("試合終了！Player " << (winner + 1) << " の勝利");
+        return false;
     }
 
-    return true;  // 試合継続
+    LOG_SUCCESS("セット獲得: " << score->sets_p1 << " - " << score->sets_p2);
+    return true;
 }
 
 bool add_point(GameScore *score, int winner)
 {
     int *win_pt = (winner == 0) ? &score->point_p1 : &score->point_p2;
 
-    // ポイント加算 (0 → 15 → 30 → 40 → 50)
-    if (*win_pt == 0)
+    switch (*win_pt)
     {
-        *win_pt = 15;
+        case 0:  *win_pt = 15; break;
+        case 15: *win_pt = 30; break;
+        case 30: *win_pt = 40; break;
+        case 40:
+            *win_pt = 50;
+            return award_set(score, winner);
     }
-    else if (*win_pt == 15)
-    {
-        *win_pt = 30;
-    }
-    else if (*win_pt == 30)
-    {
-        *win_pt = 40;
-    }
-    else if (*win_pt == 40)
-    {
-        *win_pt = 50;
-        // 50点でセット獲得
-        return award_set(score, winner);
-    }
-
     return true;
 }
 
 void print_score(const GameScore *score)
 {
-    LOG_INFO("セット: " << score->sets_p1 << " - " << score->sets_p2
-             << " | ポイント: " << score->point_p1 << " - " << score->point_p2);
+    // ログ削減のため空実装
+    (void)score;
 }
 
 bool match_finished(const GameScore *score)
