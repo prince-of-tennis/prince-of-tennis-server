@@ -25,10 +25,8 @@ static void update_ability_states(ServerContext *ctx)
         {
             state->remaining_frames--;
 
-            // 能力終了時にブロードキャスト
             if (state->remaining_frames == 0)
             {
-                LOG_INFO("能力終了: player=" << i << " ability=" << static_cast<int>(state->active_ability));
                 state->active_ability = ABILITY_NONE;
                 broadcast_ability_state(ctx, i);
             }
@@ -46,8 +44,6 @@ void server_run_main_loop(ServerContext *ctx)
     // ゲームフェーズを開始状態に設定
     set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
 
-    // 初期スコア（0-0）を送信
-    LOG_INFO("初期スコアを送信: 0-0");
     broadcast_score_update(ctx);
 
     LOG_SUCCESS("ゲーム開始！");

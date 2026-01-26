@@ -13,8 +13,6 @@ void broadcast_phase_update(ServerContext *ctx)
 {
     if (ctx->state.phase != ctx->last_sent_phase)
     {
-        LOG_DEBUG("フェーズ変更: " << ctx->last_sent_phase << " -> " << ctx->state.phase);
-
         Packet phase_packet = create_packet_phase(ctx->state.phase);
         network_broadcast(ctx->players, ctx->connections, &phase_packet);
 
@@ -24,11 +22,8 @@ void broadcast_phase_update(ServerContext *ctx)
 
 void broadcast_score_update(ServerContext *ctx)
 {
-    // スコアが変更されたかチェック
     if (memcmp(&ctx->state.score, &ctx->last_sent_score, sizeof(GameScore)) != 0)
     {
-        LOG_INFO("スコア更新を送信");
-
         Packet score_packet = create_packet_score(&ctx->state.score);
         network_broadcast(ctx->players, ctx->connections, &score_packet);
 
@@ -46,8 +41,6 @@ void broadcast_initial_player_states(ServerContext *ctx)
             network_broadcast(ctx->players, ctx->connections, &player_packet);
         }
     }
-
-    LOG_DEBUG("初期プレイヤー状態を送信");
 }
 
 void broadcast_ability_state(ServerContext *ctx, int player_id)

@@ -13,17 +13,63 @@
 #include "common/game_constants.h"
 #include "server_broadcast.h"
 
-// クライアント入力を処理
+static void handle_point_scored(ServerContext *ctx, int winner_id)
+{
+    bool game_continues = add_point(&ctx->state.score, winner_id);
+    broadcast_score_update(ctx);
+    print_score(&ctx->state.score);
+
+    if (!game_continues)
+    {
+        ctx->state.match_winner = winner_id;
+        set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
+        return;
+    }
+
+    set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
+    int next_server = GameConstants::get_opponent_player_id(winner_id);
+    reset_ball(&ctx->state.ball, next_server);
+    ctx->state.server_player_id = next_server;
+}
+
+static void handle_ability_toggle(ServerContext *ctx, int player_id, const AbilityActivateRequest *request)
+{
+    AbilityState *state = &ctx->state.ability_states[player_id];
+    state->player_id = player_id;
+
+    if (request->trigger == TRIGGER_INSTANT)
+    {
+        state->active_ability = request->ability_type;
+        state->remaining_frames = 1;
+    }
+    else
+    {
+        state->active_ability = ABILITY_NONE;
+        state->remaining_frames = 0;
+    }
+    broadcast_ability_state(ctx, player_id);
+}
+
+static void handle_ability_standard(ServerContext *ctx, int player_id, const AbilityActivateRequest *request)
+{
+    const AbilityConfig *config = ability_get_config(request->ability_type);
+    if (config == nullptr || !config->requires_server)
+        return;
+
+    AbilityState *state = &ctx->state.ability_states[player_id];
+    state->player_id = player_id;
+    state->active_ability = request->ability_type;
+    state->remaining_frames = config->duration_frames;
+    broadcast_ability_state(ctx, player_id);
+}
+
 void game_handle_client_input(ServerContext *ctx, float dt)
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
         if (!ctx->players[i].connected || !ctx->connections[i].socket)
-        {
             continue;
-        }
 
-        // 利用可能なすべてのパケットを処理（能力リクエストとスイングが同フレームで処理されるように）
         while (SDLNet_SocketReady(ctx->connections[i].socket))
         {
             Packet packet;
@@ -37,196 +83,69 @@ void game_handle_client_input(ServerContext *ctx, float dt)
                 break;
             }
 
-            // パケットの種類をチェック
             PacketType pkt_type = (PacketType)packet.type;
-            if (pkt_type == PACKET_TYPE_PLAYER_INPUT)
+
+            if (pkt_type == PACKET_TYPE_PLAYER_INPUT && packet.size == sizeof(PlayerInput))
             {
                 PlayerInput input;
-                memset(&input, 0, sizeof(PlayerInput));
-                if (packet.size == sizeof(PlayerInput))
-                {
-                    memcpy(&input, packet.data, sizeof(PlayerInput));
-                    apply_player_input(&ctx->state, i, &input, dt);
+                memcpy(&input, packet.data, sizeof(PlayerInput));
+                apply_player_input(&ctx->state, i, &input, dt);
 
-                    // いずれかの入力がある場合、そのプレイヤーの状態を送信
-                    bool has_input = input.right || input.left || input.front || input.back;
-                    if (has_input)
-                    {
-                        Packet player_packet = create_packet_player_state(&ctx->state.players[i]);
-                        network_broadcast(ctx->players, ctx->connections, &player_packet);
-                    }
-                }
-                else
+                bool has_input = input.right || input.left || input.front || input.back;
+                if (has_input)
                 {
-                    LOG_WARN("PlayerInputのサイズが不一致: 受信=" << packet.size
-                            << ", 期待=" << sizeof(PlayerInput));
+                    Packet player_packet = create_packet_player_state(&ctx->state.players[i]);
+                    network_broadcast(ctx->players, ctx->connections, &player_packet);
                 }
             }
-            else if (pkt_type == PACKET_TYPE_PLAYER_SWING)
+            else if (pkt_type == PACKET_TYPE_PLAYER_SWING && packet.size == sizeof(PlayerSwing))
             {
                 PlayerSwing swing;
-                memset(&swing, 0, sizeof(PlayerSwing));
-                if (packet.size == sizeof(PlayerSwing))
-                {
-                    memcpy(&swing, packet.data, sizeof(PlayerSwing));
-                    apply_player_swing(&ctx->state, i, &swing);
-                }
-                else
-                {
-                    LOG_WARN("PlayerSwingのサイズが不一致: 受信=" << packet.size
-                            << ", 期待=" << sizeof(PlayerSwing));
-                }
+                memcpy(&swing, packet.data, sizeof(PlayerSwing));
+                apply_player_swing(&ctx->state, i, &swing);
             }
-            else if (pkt_type == PACKET_TYPE_ABILITY_REQUEST)
+            else if (pkt_type == PACKET_TYPE_ABILITY_REQUEST && packet.size == sizeof(AbilityActivateRequest))
             {
                 AbilityActivateRequest request;
-                memset(&request, 0, sizeof(AbilityActivateRequest));
-                if (packet.size == sizeof(AbilityActivateRequest))
-                {
-                    memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
+                memcpy(&request, packet.data, sizeof(AbilityActivateRequest));
 
-                    if (request.ability_type == ABILITY_GIANT || request.ability_type == ABILITY_CLONE)
-                    {
-                        AbilityState* state = &ctx->state.ability_states[i];
-                        state->player_id = i;
-
-                        if (request.trigger == TRIGGER_INSTANT)
-                        {
-                            state->active_ability = request.ability_type;
-                            state->remaining_frames = 1;
-                            LOG_INFO("能力発動: player=" << i << " type=" << static_cast<int>(request.ability_type));
-                        }
-                        else
-                        {
-                            state->active_ability = ABILITY_NONE;
-                            state->remaining_frames = 0;
-                            LOG_INFO("能力解除: player=" << i);
-                        }
-
-                        broadcast_ability_state(ctx, i);
-                    }
-                    else
-                    {
-                        // その他の能力は従来通り
-                        const AbilityConfig* config = ability_get_config(request.ability_type);
-                        if (config != nullptr && config->requires_server)
-                        {
-                            AbilityState* state = &ctx->state.ability_states[i];
-                            state->player_id = i;
-                            state->active_ability = request.ability_type;
-                            state->remaining_frames = config->duration_frames;
-
-                            LOG_INFO("能力発動: player=" << i
-                                    << " ability=" << static_cast<int>(request.ability_type)
-                                    << " duration=" << config->duration_frames);
-
-                            broadcast_ability_state(ctx, i);
-                        }
-                    }
-                }
+                if (request.ability_type == ABILITY_GIANT || request.ability_type == ABILITY_CLONE)
+                    handle_ability_toggle(ctx, i, &request);
+                else
+                    handle_ability_standard(ctx, i, &request);
             }
         }
     }
 }
 
-// ゲーム物理とスコアリングを更新
 void game_update_physics_and_scoring(ServerContext *ctx, float dt)
 {
-    // 物理更新（フェーズチェックヘルパーを使用）
     if (is_physics_active_phase(ctx->state.phase))
-    {
         update_ball(&ctx->state.ball, dt);
-    }
 
-    // ネット判定（毎フレームチェック）
     if (ctx->state.phase == GAME_PHASE_IN_RALLY)
     {
         Ball *ball = &ctx->state.ball;
 
-        // ネット判定: Z=0を跨いだかチェック
         bool crossed_net = (ball->previous_z * ball->point.z < 0.0f) ||
                            (ball->previous_z == GameConstants::NET_POSITION_Z) ||
                            (ball->point.z == GameConstants::NET_POSITION_Z);
 
         if (crossed_net && ball->point.y <= GameConstants::NET_HEIGHT)
         {
-            // ネットに引っかかった → 打った人のミス
             int winner_id = GameConstants::get_opponent_player_id(ball->last_hit_player_id);
-            LOG_INFO("判定: ネット! Y=" << ball->point.y << "m (NET_HEIGHT="
-                     << GameConstants::NET_HEIGHT << "m) 勝者: P" << winner_id);
-
-            // スコア加算（falseなら試合終了）
-            bool game_continues = add_point(&ctx->state.score, winner_id);
-
-            // スコア送信
-            broadcast_score_update(ctx);
-
-            // スコア表示
-            print_score(&ctx->state.score);
-
-            if (!game_continues)
-            {
-                // 試合終了
-                ctx->state.match_winner = winner_id;
-                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
-            }
-            else
-            {
-                // フェーズ移行（次のサーブ準備へ）
-                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
-
-                // 得点後にボールを初期化
-                int next_server = GameConstants::get_opponent_player_id(winner_id);
-                reset_ball(&ctx->state.ball, next_server);
-                ctx->state.server_player_id = next_server;
-                LOG_INFO("次のサーブ: Player" << next_server);
-            }
-
-            return;  // ネット判定で処理完了したので、バウンド判定はスキップ
+            handle_point_scored(ctx, winner_id);
+            return;
         }
     }
 
-    // バウンド処理
-    if (is_physics_active_phase(ctx->state.phase)
-        && handle_bounce(&ctx->state.ball, GameConstants::GROUND_Y, GameConstants::BOUNCE_RESTITUTION))
+    if (is_physics_active_phase(ctx->state.phase) &&
+        handle_bounce(&ctx->state.ball, GameConstants::GROUND_Y, GameConstants::BOUNCE_RESTITUTION))
     {
         ctx->state.ball.bounce_count++;
 
-        // 得点判定を実行
         int winner_id = judge_point(&ctx->state);
-
-        // 勝者が決まったらスコア加算と次のサーブ準備
         if (winner_id != GameConstants::PLAYER_ID_INVALID)
-        {
-            LOG_INFO("得点加算: Player" << winner_id << " が得点");
-
-            // スコア加算（falseなら試合終了）
-            bool game_continues = add_point(&ctx->state.score, winner_id);
-
-            // スコア送信
-            broadcast_score_update(ctx);
-
-            // スコア表示
-            print_score(&ctx->state.score);
-
-            if (!game_continues)
-            {
-                // 試合終了
-                ctx->state.match_winner = winner_id;
-                set_game_phase(&ctx->state, GAME_PHASE_GAME_FINISHED);
-            }
-            else
-            {
-                // フェーズ移行（次のサーブ準備へ）
-                set_game_phase(&ctx->state, GAME_PHASE_START_GAME);
-
-                // 得点後にボールを初期化
-                // 次のサーバーは得点者の相手（テニスのルール）
-                int next_server = GameConstants::get_opponent_player_id(winner_id);
-                reset_ball(&ctx->state.ball, next_server);
-                ctx->state.server_player_id = next_server;
-                LOG_INFO("次のサーブ: Player" << next_server);
-            }
-        }
+            handle_point_scored(ctx, winner_id);
     }
 }

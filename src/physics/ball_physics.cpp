@@ -1,5 +1,4 @@
 #include "ball_physics.h"
-#include "../log.h"
 #include "common/game_constants.h"
 #include <math.h>
 
@@ -72,27 +71,16 @@ void reset_ball(Ball *ball, int server_player_id)
     constexpr float SERVE_POSITION_Z = GameConstants::PLAYER_BASELINE_DISTANCE - GameConstants::BALL_SERVE_OFFSET_FROM_BASELINE;
 
     if (server_player_id == 0)
-    {
-        // Player0のサーブ位置（手前側）
         ball->point = (Point3d){0.0f, GameConstants::BALL_SERVE_HEIGHT, SERVE_POSITION_Z};
-        LOG_INFO("ボールリセット: Player0のサーブ位置 (0.0, " << GameConstants::BALL_SERVE_HEIGHT << ", " << SERVE_POSITION_Z << ")");
-    }
     else
-    {
-        // Player1のサーブ位置（奥側）
         ball->point = (Point3d){0.0f, GameConstants::BALL_SERVE_HEIGHT, -SERVE_POSITION_Z};
-        LOG_INFO("ボールリセット: Player1のサーブ位置 (0.0, " << GameConstants::BALL_SERVE_HEIGHT << ", " << -SERVE_POSITION_Z << ")");
-    }
 
-    // 速度をリセット
     ball->velocity = (Point3d){0.0f, 0.0f, 0.0f};
     ball->angle = 0;
     ball->last_hit_player_id = server_player_id;
     ball->bounce_count = 0;
     ball->hit_count = 0;
-    ball->previous_z = ball->point.z;  // 初期位置のZ座標を保存
-    ball->gravity_multiplier = 1.0f;   // 重力倍率を通常に戻す
-
-    LOG_DEBUG("ボール初期化完了: サーバー=Player" << server_player_id);
+    ball->previous_z = ball->point.z;
+    ball->gravity_multiplier = 1.0f;
 }
 

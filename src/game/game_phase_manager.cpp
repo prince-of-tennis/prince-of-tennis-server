@@ -18,27 +18,6 @@ void set_game_phase(GameState *state, GamePhase next_phase)
     state->phase = next_phase;
     state->state_timer = 0.0f;
 
-    switch (next_phase)
-    {
-    case GAME_PHASE_START_GAME:
-        LOG_INFO("フェーズ: ゲーム開始 / サービス");
-        break;
-
-    case GAME_PHASE_IN_RALLY:
-        LOG_INFO("フェーズ: ラリー中");
-        break;
-
-    case GAME_PHASE_POINT_SCORED:
-        LOG_INFO("フェーズ: ポイント獲得");
-        break;
-
-    case GAME_PHASE_GAME_FINISHED:
-        LOG_SUCCESS("フェーズ: ゲームセット！");
-        break;
-
-    default:
-        break;
-    }
 }
 
 // 物理更新が有効なフェーズかチェック
