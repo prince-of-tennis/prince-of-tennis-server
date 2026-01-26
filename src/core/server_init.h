@@ -4,8 +4,9 @@
 
 // サーバー初期化
 // SDL、ネットワーク、ゲーム状態を初期化する
+// port: サーバーがリッスンするポート番号
 // 戻り値: 成功時true、失敗時false
-bool server_initialize(ServerContext *ctx);
+bool server_initialize(ServerContext *ctx, int port);
 
 // クライアント接続待機
 // 必要人数（MAX_CLIENTS）のクライアントが接続するまで待機

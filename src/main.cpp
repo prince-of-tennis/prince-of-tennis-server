@@ -1,5 +1,8 @@
 #include <signal.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "log.h"
 #include "core/server_init.h"
@@ -8,6 +11,32 @@
 // グローバル変数: Ctrl+C対応
 // シグナルハンドラーから参照するため、グローバルに配置
 volatile int g_running = 1;
+
+// コマンドライン引数から取得するポート（デフォルト: 5000）
+static int g_port = 5000;
+
+// コマンドライン引数のパース
+static void parse_args(int argc, char *argv[])
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if ((strcmp(argv[i], "--port") == 0 || strcmp(argv[i], "-p") == 0) && i + 1 < argc)
+        {
+            g_port = atoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--help") == 0)
+        {
+            printf("Usage: %s [options]\n", argv[0]);
+            printf("Options:\n");
+            printf("  --port, -p <port>  Server port (default: 5000)\n");
+            printf("  --help             Show this help\n");
+            exit(0);
+        }
+    }
+}
+
+// ポート番号を取得する関数
+int get_server_port() { return g_port; }
 
 // シグナルハンドラー
 void signal_handler(int signum)
@@ -24,14 +53,19 @@ void signal_handler(int signum)
 
 int main(int argc, char *argv[])
 {
+    // コマンドライン引数をパース
+    parse_args(argc, argv);
+
+    printf("Starting server on port %d\n", g_port);
+
     // シグナルハンドラーを設定
     signal(SIGINT, signal_handler);
 
     // サーバーコンテキスト初期化
     ServerContext ctx;
 
-    // サーバー初期化
-    if (!server_initialize(&ctx))
+    // サーバー初期化（ポート番号を渡す）
+    if (!server_initialize(&ctx, g_port))
     {
         LOG_ERROR("サーバー初期化失敗");
         return 1;

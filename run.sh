@@ -1,2 +1,2 @@
 #!/bin/bash
-./build/server
+./build/server --port "5000"
