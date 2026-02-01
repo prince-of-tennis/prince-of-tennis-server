@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#define DEBUG
+inline bool g_debug_log_enabled = false;
 
 #define ANSI_RESET "\033[0m"
 #define ANSI_RED "\033[31m"
@@ -17,17 +17,17 @@
               << ANSI_RESET << std::endl
 
 // 警告ログ
-#define LOG_WARN(message) std::cerr << ANSI_YELLOW "[!] " << message << ANSI_RESET << std::endl
+#define LOG_WARN(message) \
+    do { if (g_debug_log_enabled) std::cerr << ANSI_YELLOW "[!] " << message << ANSI_RESET << std::endl; } while(0)
 
 // 成功ログ
-#define LOG_SUCCESS(message) std::cerr << ANSI_GREEN << "[o] " << message << ANSI_RESET << std::endl
+#define LOG_SUCCESS(message) \
+    do { if (g_debug_log_enabled) std::cerr << ANSI_GREEN << "[o] " << message << ANSI_RESET << std::endl; } while(0)
 
-// 情報ログ (重要なイベント用)
-#define LOG_INFO(message) std::cerr << "[-] " << message << ANSI_RESET << std::endl
+// 情報ログ
+#define LOG_INFO(message) \
+    do { if (g_debug_log_enabled) std::cerr << "[-] " << message << std::endl; } while(0)
 
-#ifdef DEBUG
-// デバッグログ (DEBUGが定義された時のみ有効、詳細情報用)
-#define LOG_DEBUG(message) std::cerr << ANSI_BLUE "[d] " << message << ANSI_RESET << std::endl
-#else
-#define LOG_DEBUG(message)
-#endif
+// デバッグログ
+#define LOG_DEBUG(message) \
+    do { if (g_debug_log_enabled) std::cerr << ANSI_BLUE "[d] " << message << ANSI_RESET << std::endl; } while(0)
