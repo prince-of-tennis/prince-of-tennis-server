@@ -24,11 +24,16 @@ static void parse_args(int argc, char *argv[])
         {
             g_port = atoi(argv[++i]);
         }
+        else if (strcmp(argv[i], "--debug-log") == 0 || strcmp(argv[i], "-d") == 0)
+        {
+            g_debug_log_enabled = true;
+        }
         else if (strcmp(argv[i], "--help") == 0)
         {
             printf("Usage: %s [options]\n", argv[0]);
             printf("Options:\n");
             printf("  --port, -p <port>  Server port (default: 5000)\n");
+            printf("  --debug-log, -d    Enable debug logging\n");
             printf("  --help             Show this help\n");
             exit(0);
         }
